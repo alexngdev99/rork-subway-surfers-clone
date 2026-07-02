@@ -38,6 +38,9 @@ enum GeneratedAssets {
     /// Additional building styles arranged into the front street row.
     static let shopBuildingModel: String? = "brick_shop_building"
     static let apartmentBuildingModel: String? = "city_apartment_building"
+    /// Sidewalk curb strip cloned along both track edges. nil → the procedural
+    /// gray containment wall remains as the fallback border.
+    static let curbModel: String? = "sidewalk_curb"
 
     // Decor orientation metadata (defaults until generation output is finalized)
     static let buildingFrontAxis: GeneratedModelAxis? = .positiveZ
@@ -50,6 +53,10 @@ enum GeneratedAssets {
     static let treeUpAxis: GeneratedModelAxis = .positiveY
     static let lampFrontAxis: GeneratedModelAxis? = .positiveZ
     static let lampUpAxis: GeneratedModelAxis = .positiveY
+    /// Curb is a modular tiled strip — directionless per generation metadata;
+    /// the long axis is aligned to the track by measured bounds at placement.
+    static let curbFrontAxis: GeneratedModelAxis? = nil
+    static let curbUpAxis: GeneratedModelAxis = .positiveY
 
     // MARK: Jetpack power-up prop (bundled USDZ, no extension)
 

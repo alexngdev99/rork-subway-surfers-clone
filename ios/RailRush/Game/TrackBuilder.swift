@@ -14,6 +14,8 @@ enum TrackBuilder {
         var buildings: [Entity] = []
         var tree: Entity?
         var lamp: Entity?
+        /// Sidewalk curb strip cloned along both track edges.
+        var curb: Entity?
     }
 
     static var decorPrototypes = DecorPrototypes()
@@ -83,6 +85,22 @@ enum TrackBuilder {
             )
             decorPrototypes.lamp = container
         }
+        if let name = GeneratedAssets.curbModel,
+           let visual = try? await Entity(named: name) {
+            let container = Entity()
+            // Normalize by the curb's HEIGHT (small Y extent) so the raised
+            // block reads at real-world curb scale; the strip length is
+            // measured from bounds at placement time. Directionless model —
+            // no front-axis yaw correction.
+            attachGeneratedModelVisual(
+                visual,
+                to: container,
+                targetHeight: 0.55,
+                localFrontAxis: GeneratedAssets.curbFrontAxis,
+                localUpAxis: GeneratedAssets.curbUpAxis
+            )
+            decorPrototypes.curb = container
+        }
     }
 
     private static let buildingPalette: [UIColor] = [
@@ -100,21 +118,26 @@ enum TrackBuilder {
 
         addTrackBed(to: segment)
 
-        // Side containment walls with graffiti-toned stripes
-        for side in [Float(-1), 1] {
-            let wall = ModelEntity(
-                mesh: .generateBox(size: [0.5, 1.3, segmentLength]),
-                materials: [SimpleMaterial(color: UIColor(red: 0.5, green: 0.52, blue: 0.6, alpha: 1), roughness: 0.8, isMetallic: false)]
-            )
-            wall.position = [side * 5.1, 0.65, 0]
-            segment.addChild(wall)
+        if let curb = decorPrototypes.curb {
+            // Generated sidewalk curb strips line both edges of the track.
+            addCurbRows(from: curb, to: segment)
+        } else {
+            // Fallback: side containment walls with graffiti-toned stripes.
+            for side in [Float(-1), 1] {
+                let wall = ModelEntity(
+                    mesh: .generateBox(size: [0.5, 1.3, segmentLength]),
+                    materials: [SimpleMaterial(color: UIColor(red: 0.5, green: 0.52, blue: 0.6, alpha: 1), roughness: 0.8, isMetallic: false)]
+                )
+                wall.position = [side * 5.1, 0.65, 0]
+                segment.addChild(wall)
 
-            let stripe = ModelEntity(
-                mesh: .generateBox(size: [0.52, 0.28, segmentLength]),
-                materials: [UnlitMaterial(color: UIColor(red: 1.0, green: 0.45, blue: 0.1, alpha: 1))]
-            )
-            stripe.position = [side * 5.1, 0.9, 0]
-            segment.addChild(stripe)
+                let stripe = ModelEntity(
+                    mesh: .generateBox(size: [0.52, 0.28, segmentLength]),
+                    materials: [UnlitMaterial(color: UIColor(red: 1.0, green: 0.45, blue: 0.1, alpha: 1))]
+                )
+                stripe.position = [side * 5.1, 0.9, 0]
+                segment.addChild(stripe)
+            }
         }
 
         // Buildings container — populated by randomizeDecor
@@ -206,6 +229,43 @@ enum TrackBuilder {
             ]
             pebble.orientation = simd_quatf(angle: Float.random(in: 0...(2 * .pi)), axis: [0, 1, 0])
             segment.addChild(pebble)
+        }
+    }
+
+    /// Clones the generated curb prototype into evenly-spaced strips along both
+    /// track edges. The model is directionless, so the strip's measured long
+    /// axis is aligned down the track geometrically, and the two sides are
+    /// mirrored so both rows show the same face toward the lanes. Sections are
+    /// stretched along the long axis so a whole number of clones covers the
+    /// segment exactly — no gaps, no overlap.
+    private static func addCurbRows(from prototype: Entity, to segment: Entity) {
+        let bounds = prototype.visualBounds(relativeTo: nil)
+        let longAxisIsX = bounds.extents.x >= bounds.extents.z
+        let rawLength = max(longAxisIsX ? bounds.extents.x : bounds.extents.z, 0.001)
+
+        let sectionsPerSide = 4
+        let spacing = segmentLength / Float(sectionsPerSide)
+        let lengthScale = spacing / rawLength
+
+        for side in [Float(-1), 1] {
+            // Geometric alignment: long axis down the track, mirrored per side.
+            let yaw: Float
+            if longAxisIsX {
+                yaw = side < 0 ? .pi / 2 : -.pi / 2
+            } else {
+                yaw = side < 0 ? 0 : .pi
+            }
+            let orientation = simd_quatf(angle: yaw, axis: SIMD3<Float>(0, 1, 0))
+
+            for index in 0..<sectionsPerSide {
+                let clone = prototype.clone(recursive: true)
+                // Scale is applied in the clone's LOCAL space (before the yaw),
+                // so the stretch always targets the model's own long axis.
+                clone.scale = longAxisIsX ? [lengthScale, 1, 1] : [1, 1, lengthScale]
+                clone.orientation = orientation
+                clone.position = [side * 5.2, 0, -segmentLength / 2 + spacing * (Float(index) + 0.5)]
+                segment.addChild(clone)
+            }
         }
     }
 
