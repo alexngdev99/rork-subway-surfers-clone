@@ -13,9 +13,9 @@ struct HUDView: View {
                         .font(.system(size: 18, weight: .black))
                         .foregroundStyle(.white)
                         .shadow(color: GameTheme.outline.opacity(0.9), radius: 0, y: 2)
-                        .frame(width: 56)
                 }
-                .buttonStyle(ChunkyButtonStyle(palette: .blue, height: 46, cornerRadius: 14))
+                .buttonStyle(ChunkyButtonStyle(palette: .blue, height: 48, cornerRadius: 14))
+                .frame(width: 48)
 
                 Spacer()
 
