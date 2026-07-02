@@ -60,6 +60,13 @@ enum GeneratedAssets {
     static let jetpackFrontAxis: GeneratedModelAxis? = .positiveZ
     static let jetpackUpAxis: GeneratedModelAxis = .positiveY
 
+    // MARK: Power-up pickup models (bundled USDZ, no extension)
+
+    /// Floating pickup models on the track. nil resource name → procedural orb
+    /// fallback. The jetpack pickup reuses `jetpackModel`.
+    static let magnetPickupModel: String? = nil
+    static let doubleScorePickupModel: String? = nil
+
     // MARK: Runner animation resource names (nil when the clip was not generated)
 
     static let runnerRun: String? = "cartoon_street_runner-anim-run-fast-3-inplace"

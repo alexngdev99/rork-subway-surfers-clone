@@ -45,6 +45,19 @@ final class CoinNode {
     }
 }
 
+/// A pooled one-shot particle burst played when a pickup is collected.
+final class BurstNode {
+    let entity: Entity
+    /// Remaining seconds of active particle emission.
+    var emitTimer: Float = 0
+    /// Remaining seconds until the slot can be reused.
+    var lifeTimer: Float = 0
+
+    init(entity: Entity) {
+        self.entity = entity
+    }
+}
+
 /// A pooled power-up pickup.
 final class PowerUpNode {
     let entity: Entity
@@ -84,6 +97,8 @@ final class RunnerWorld {
     private var jetpackProp: Entity?
     /// Flame particle emitters under the jetpack thruster tubes.
     private var jetpackFlames: [Entity] = []
+    /// Soft smoke trail streaming behind the jetpack while thrusting.
+    private var jetpackSmoke: Entity?
 
     // Pools
     private var trainPool: [ObstacleNode] = []
@@ -92,6 +107,7 @@ final class RunnerWorld {
     private var trainTemplate: Entity?
     private var coinPool: [CoinNode] = []
     private var powerUpPools: [PowerUpType: [PowerUpNode]] = [:]
+    private var burstPool: [BurstNode] = []
 
     // Player simulation state
     private var laneIndex = 1
@@ -291,6 +307,13 @@ final class RunnerWorld {
             container.addChild(flame)
             return flame
         }
+
+        // Faint smoke trail drifting up and back behind the exhaust.
+        let smoke = Self.makeJetSmokeTrail()
+        smoke.position = [0, -0.14, 0.08]
+        smoke.isEnabled = false
+        container.addChild(smoke)
+        jetpackSmoke = smoke
     }
 
     /// Additive orange-yellow flame cone shooting downward out of a nozzle.
@@ -322,11 +345,62 @@ final class RunnerWorld {
         return flame
     }
 
+    /// Faint grey smoke puffs that drift upward and stream backward (+Z),
+    /// selling the speed while the world rushes past the hovering runner.
+    private static func makeJetSmokeTrail() -> Entity {
+        let smoke = Entity()
+        var particles = ParticleEmitterComponent()
+        particles.emitterShape = .sphere
+        particles.emitterShapeSize = [0.07, 0.07, 0.07]
+        particles.birthLocation = .volume
+        particles.speed = 0.7
+        particles.speedVariation = 0.35
+        particles.mainEmitter.birthRate = 85
+        particles.mainEmitter.lifeSpan = 1.25
+        particles.mainEmitter.lifeSpanVariation = 0.3
+        particles.mainEmitter.size = 0.1
+        particles.mainEmitter.sizeVariation = 0.05
+        particles.mainEmitter.spreadingAngle = 0.6
+        // Runner faces -Z, so +Z pushes the puffs behind them; a touch of +Y
+        // lift makes the trail billow like real exhaust.
+        particles.mainEmitter.acceleration = [0, 1.3, 7.5]
+        particles.mainEmitter.color = .evolving(
+            start: .random(
+                a: UIColor(white: 0.95, alpha: 0.4),
+                b: UIColor(white: 0.75, alpha: 0.3)
+            ),
+            end: .single(UIColor(white: 0.9, alpha: 0))
+        )
+        smoke.components.set(particles)
+        return smoke
+    }
+
+    /// Radial sparkle burst reused for coin and power-up pickups.
+    private static func makePickupBurst() -> Entity {
+        let burst = Entity()
+        var particles = ParticleEmitterComponent()
+        particles.emitterShape = .sphere
+        particles.emitterShapeSize = [0.09, 0.09, 0.09]
+        particles.birthLocation = .surface
+        particles.speed = 2.0
+        particles.speedVariation = 0.9
+        particles.isEmitting = false
+        particles.mainEmitter.birthRate = 0
+        particles.mainEmitter.lifeSpan = 0.5
+        particles.mainEmitter.lifeSpanVariation = 0.15
+        particles.mainEmitter.size = 0.055
+        particles.mainEmitter.sizeVariation = 0.025
+        particles.mainEmitter.blendMode = .additive
+        burst.components.set(particles)
+        return burst
+    }
+
     /// Toggles the thruster feedback (flame particles + looping jet sound).
     /// Thrust cuts out the moment the power-up expires, while the hang pose and
     /// prop stay on through the descent until touchdown.
     private func setJetpackThrust(active: Bool) {
         for flame in jetpackFlames { flame.isEnabled = active }
+        jetpackSmoke?.isEnabled = active
         if active {
             audio.startJetpackLoop()
         } else {
@@ -411,15 +485,60 @@ final class RunnerWorld {
         }
 
         for type in PowerUpType.allCases {
+            // Generated pickup model per type; procedural orb fallback.
+            var template: Entity?
+            if let resourceName = Self.pickupResourceName(for: type) {
+                template = try? await Entity(named: resourceName)
+            }
+
             var pool: [PowerUpNode] = []
             for _ in 0..<2 {
-                let node = PowerUpNode(entity: TrackBuilder.makePowerUp(type: type), type: type)
+                let entity: Entity
+                if let template {
+                    entity = Self.makePickupEntity(from: template, targetHeight: type == .jetpack ? 0.95 : 0.82)
+                } else {
+                    entity = TrackBuilder.makePowerUp(type: type)
+                }
+                let node = PowerUpNode(entity: entity, type: type)
                 node.entity.isEnabled = false
                 spawned.addChild(node.entity)
                 pool.append(node)
             }
             powerUpPools[type] = pool
         }
+
+        // Pickup burst pool shared by coins and power-ups.
+        for _ in 0..<10 {
+            let node = BurstNode(entity: Self.makePickupBurst())
+            node.entity.isEnabled = false
+            spawned.addChild(node.entity)
+            burstPool.append(node)
+        }
+    }
+
+    /// Bundled resource name of the floating pickup model for a power-up type.
+    /// The jetpack pickup reuses the wearable jetpack prop model.
+    private static func pickupResourceName(for type: PowerUpType) -> String? {
+        switch type {
+        case .magnet: return GeneratedAssets.magnetPickupModel
+        case .doubleScore: return GeneratedAssets.doubleScorePickupModel
+        case .jetpack: return GeneratedAssets.jetpackModel
+        }
+    }
+
+    /// Clones a generated pickup visual into a container normalized to the
+    /// floating pickup size and centered on all axes so Y-spin looks correct.
+    private static func makePickupEntity(from template: Entity, targetHeight: Float) -> Entity {
+        let container = Entity()
+        let visual = template.clone(recursive: true)
+        container.addChild(visual)
+
+        let rawBounds = visual.visualBounds(relativeTo: container)
+        visual.scale *= SIMD3<Float>(repeating: targetHeight / max(rawBounds.extents.y, 0.001))
+
+        let bounds = visual.visualBounds(relativeTo: container)
+        visual.position -= bounds.center
+        return container
     }
 
     /// Clones the generated coin visual into a container normalized to the
@@ -486,6 +605,7 @@ final class RunnerWorld {
         inspectorTargetZ = 3.4
         crashHandled = false
         shakeTimer = 0
+        clearBursts()
 
         playerContainer.position = [0, 0, 0]
         playerContainer.orientation = simd_quatf(angle: 0, axis: [0, 1, 0])
@@ -575,6 +695,8 @@ final class RunnerWorld {
         // back when the run loop resumes.
         runnerAnimator?.cancelHorizontalRootMotion()
         inspectorAnimator?.cancelHorizontalRootMotion()
+
+        updateBursts(dt: dt)
 
         switch state.phase {
         case .loading:
@@ -858,6 +980,11 @@ final class RunnerWorld {
                 coin.isActive = false
                 coin.entity.isEnabled = false
                 state.coins += 1
+                spawnPickupBurst(
+                    at: position,
+                    color: UIColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 0.95),
+                    accent: UIColor(red: 1.0, green: 0.98, blue: 0.8, alpha: 0.95)
+                )
                 audio.play(.coin)
                 haptics.coin()
             }
@@ -872,6 +999,12 @@ final class RunnerWorld {
                 if abs(position.z) < 0.9, abs(position.x - playerX) < 1.0, playerY < 2.2 {
                     node.isActive = false
                     node.entity.isEnabled = false
+                    spawnPickupBurst(
+                        at: position,
+                        color: Self.burstColor(for: node.type),
+                        accent: UIColor(white: 1.0, alpha: 0.95),
+                        scale: 1.7
+                    )
                     activatePowerUp(node.type)
                 }
             }
@@ -912,6 +1045,65 @@ final class RunnerWorld {
             setJetpackThrust(active: true)
         case .magnet:
             break
+        }
+    }
+
+    // MARK: Pickup bursts
+
+    private static func burstColor(for type: PowerUpType) -> UIColor {
+        switch type {
+        case .magnet: return UIColor(red: 0.25, green: 0.6, blue: 1.0, alpha: 0.95)
+        case .doubleScore: return UIColor(red: 1.0, green: 0.75, blue: 0.1, alpha: 0.95)
+        case .jetpack: return UIColor(red: 1.0, green: 0.45, blue: 0.15, alpha: 0.95)
+        }
+    }
+
+    /// Fires a short radial sparkle burst at a pickup's world position.
+    private func spawnPickupBurst(at position: SIMD3<Float>, color: UIColor, accent: UIColor, scale: Float = 1) {
+        guard let node = burstPool.first(where: { $0.lifeTimer <= 0 }) ?? burstPool.first else { return }
+        node.entity.position = position
+        node.entity.isEnabled = true
+
+        if var particles = node.entity.components[ParticleEmitterComponent.self] {
+            particles.speed = 2.0 * scale
+            particles.mainEmitter.birthRate = 850
+            particles.mainEmitter.size = 0.055 * scale
+            particles.mainEmitter.color = .evolving(
+                start: .random(a: color, b: accent),
+                end: .single(color.withAlphaComponent(0))
+            )
+            particles.isEmitting = true
+            node.entity.components.set(particles)
+        }
+
+        node.emitTimer = 0.09
+        node.lifeTimer = 0.8
+    }
+
+    /// Advances burst timers: stops emission after the flash window and frees
+    /// the slot once the last particles have faded.
+    private func updateBursts(dt: Float) {
+        for node in burstPool where node.lifeTimer > 0 {
+            node.lifeTimer -= dt
+            if node.emitTimer > 0 {
+                node.emitTimer -= dt
+                if node.emitTimer <= 0 {
+                    node.entity.components[ParticleEmitterComponent.self]?.isEmitting = false
+                }
+            }
+            if node.lifeTimer <= 0 {
+                node.entity.isEnabled = false
+            }
+        }
+    }
+
+    /// Instantly clears every active burst (run restarts / returning home).
+    private func clearBursts() {
+        for node in burstPool {
+            node.emitTimer = 0
+            node.lifeTimer = 0
+            node.entity.components[ParticleEmitterComponent.self]?.isEmitting = false
+            node.entity.isEnabled = false
         }
     }
 
