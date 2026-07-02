@@ -7,6 +7,57 @@ enum TrackBuilder {
     static let segmentLength: Float = 40
     static let laneXs: [Float] = [-2, 0, 2]
 
+    /// Normalized prototype containers for generated environment decor.
+    /// Loaded once at scene build; clones are placed on each track segment.
+    struct DecorPrototypes {
+        var building: Entity?
+        var tree: Entity?
+        var lamp: Entity?
+    }
+
+    static var decorPrototypes = DecorPrototypes()
+
+    /// Loads the generated environment models (if bundled) into normalized
+    /// prototype containers ready for cloning. Missing models are skipped —
+    /// procedural decor remains as the fallback.
+    static func loadDecorPrototypes() async {
+        if let visual = try? await Entity(named: GeneratedAssets.buildingModel) {
+            let container = Entity()
+            attachGeneratedModelVisual(
+                visual,
+                to: container,
+                targetHeight: 8.5,
+                localFrontAxis: GeneratedAssets.buildingFrontAxis,
+                localUpAxis: GeneratedAssets.buildingUpAxis,
+                desiredWorldForward: [0, 0, 1]
+            )
+            decorPrototypes.building = container
+        }
+        if let visual = try? await Entity(named: GeneratedAssets.treeModel) {
+            let container = Entity()
+            attachGeneratedModelVisual(
+                visual,
+                to: container,
+                targetHeight: 3.2,
+                localFrontAxis: GeneratedAssets.treeFrontAxis,
+                localUpAxis: GeneratedAssets.treeUpAxis
+            )
+            decorPrototypes.tree = container
+        }
+        if let visual = try? await Entity(named: GeneratedAssets.lampModel) {
+            let container = Entity()
+            attachGeneratedModelVisual(
+                visual,
+                to: container,
+                targetHeight: 3.6,
+                localFrontAxis: GeneratedAssets.lampFrontAxis,
+                localUpAxis: GeneratedAssets.lampUpAxis,
+                desiredWorldForward: [0, 0, 1]
+            )
+            decorPrototypes.lamp = container
+        }
+    }
+
     private static let buildingPalette: [UIColor] = [
         UIColor(red: 0.95, green: 0.55, blue: 0.25, alpha: 1),
         UIColor(red: 0.36, green: 0.62, blue: 0.72, alpha: 1),
@@ -75,15 +126,56 @@ enum TrackBuilder {
         let decor = Entity()
         decor.name = "segment_decor"
         segment.addChild(decor)
+
+        // Generated decor clones — created ONCE per segment, repositioned on recycle.
+        let generatedDecor = Entity()
+        generatedDecor.name = "generated_decor"
+        segment.addChild(generatedDecor)
+        populateGeneratedDecor(in: generatedDecor)
+
         randomizeDecor(on: segment)
 
         return segment
     }
 
+    /// Clones the loaded prototypes into a segment's generated-decor container.
+    /// Each clone stores its side in the sign of its X position; randomizeDecor
+    /// keeps the sign and re-rolls the rest.
+    private static func populateGeneratedDecor(in container: Entity) {
+        for side in [Float(-1), 1] {
+            for index in 0..<2 {
+                if let building = decorPrototypes.building {
+                    let clone = building.clone(recursive: true)
+                    clone.name = "gen_building"
+                    clone.position = [side * 10, 0, Float(index) * 12 - 8]
+                    container.addChild(clone)
+                }
+                if let tree = decorPrototypes.tree {
+                    let clone = tree.clone(recursive: true)
+                    clone.name = "gen_tree"
+                    clone.position = [side * 7, 0, Float(index) * 14 - 12]
+                    container.addChild(clone)
+                }
+                if let lamp = decorPrototypes.lamp {
+                    let clone = lamp.clone(recursive: true)
+                    clone.name = "gen_lamp"
+                    clone.position = [side * 5.85, 0, Float(index) * 20 - 10]
+                    container.addChild(clone)
+                }
+            }
+        }
+    }
+
     /// Re-rolls the buildings so recycled segments look fresh.
     static func randomizeDecor(on segment: Entity) {
+        randomizeGeneratedDecor(on: segment)
         guard let decor = segment.findEntity(named: "segment_decor") else { return }
         decor.children.forEach { $0.removeFromParent() }
+
+        // Procedural filler buildings sit BEHIND the generated front row when
+        // generated models are available; otherwise they stay close as before.
+        let hasGeneratedRow = decorPrototypes.building != nil
+        let xRange: ClosedRange<Float> = hasGeneratedRow ? 13.0...16.0 : 9.5...12.0
 
         for side in [Float(-1), 1] {
             var z: Float = -segmentLength / 2
@@ -95,7 +187,7 @@ enum TrackBuilder {
                     mesh: .generateBox(size: [width, height, Float.random(in: 5...8)]),
                     materials: [SimpleMaterial(color: color, roughness: 0.9, isMetallic: false)]
                 )
-                building.position = [side * Float.random(in: 9.5...12), height / 2 - 0.2, z + width / 2]
+                building.position = [side * Float.random(in: xRange), height / 2 - 0.2, z + width / 2]
                 decor.addChild(building)
 
                 // Simple rooftop block for skyline variety
@@ -108,6 +200,37 @@ enum TrackBuilder {
                     decor.addChild(cap)
                 }
                 z += width + Float.random(in: 1...3)
+            }
+        }
+    }
+
+    /// Repositions the pre-cloned generated decor so recycled segments vary.
+    /// Clones keep their side (sign of X); Z, distance band, scale, and facing
+    /// are re-rolled. Buildings and lamps turn their front toward the track.
+    private static func randomizeGeneratedDecor(on segment: Entity) {
+        guard let container = segment.findEntity(named: "generated_decor") else { return }
+        let halfLength = segmentLength / 2
+
+        for child in container.children {
+            let side: Float = child.position.x < 0 ? -1 : 1
+            // Prototype visuals are normalized to face +Z; turn toward track center.
+            let faceTrack = simd_quatf(from: SIMD3<Float>(0, 0, 1), to: SIMD3<Float>(-side, 0, 0))
+
+            switch child.name {
+            case "gen_building":
+                child.position = [side * Float.random(in: 9.2...11.0), 0, Float.random(in: -halfLength + 5 ... halfLength - 5)]
+                child.scale = SIMD3<Float>(repeating: Float.random(in: 0.85...1.3))
+                child.orientation = faceTrack
+            case "gen_tree":
+                child.position = [side * Float.random(in: 6.4...7.8), 0, Float.random(in: -halfLength + 2 ... halfLength - 2)]
+                child.scale = SIMD3<Float>(repeating: Float.random(in: 0.8...1.15))
+                child.orientation = simd_quatf(angle: Float.random(in: 0...(2 * .pi)), axis: [0, 1, 0])
+            case "gen_lamp":
+                child.position = [side * 5.85, 0, Float.random(in: -halfLength + 3 ... halfLength - 3)]
+                child.scale = SIMD3<Float>(repeating: 1)
+                child.orientation = faceTrack
+            default:
+                break
             }
         }
     }

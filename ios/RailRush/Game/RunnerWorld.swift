@@ -134,6 +134,10 @@ final class RunnerWorld {
         setupCameraAndLights(in: content)
         environment.addChild(TrackBuilder.makeBackdrop())
 
+        // Generated environment decor prototypes must load before segments are
+        // built so each segment can clone them once.
+        await TrackBuilder.loadDecorPrototypes()
+
         // Scrolling track segments
         for i in 0..<3 {
             let segment = TrackBuilder.makeSegment()

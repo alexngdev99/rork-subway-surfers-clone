@@ -26,6 +26,20 @@ enum GeneratedAssets {
     static let coinFrontAxis: GeneratedModelAxis? = nil
     static let coinUpAxis: GeneratedModelAxis = .positiveY
 
+    // MARK: Environment decor models (bundled USDZ, no extension)
+
+    static let buildingModel = "graffiti_city_building"
+    static let treeModel = "city_tree"
+    static let lampModel = "railway_signal_lamp"
+
+    // Decor orientation metadata (defaults until generation output is finalized)
+    static let buildingFrontAxis: GeneratedModelAxis? = .positiveZ
+    static let buildingUpAxis: GeneratedModelAxis = .positiveY
+    static let treeFrontAxis: GeneratedModelAxis? = nil
+    static let treeUpAxis: GeneratedModelAxis = .positiveY
+    static let lampFrontAxis: GeneratedModelAxis? = .positiveZ
+    static let lampUpAxis: GeneratedModelAxis = .positiveY
+
     // MARK: Runner animation resource names (nil when the clip was not generated)
 
     static let runnerRun: String? = "cartoon_street_runner-anim-run-fast-3-inplace"
