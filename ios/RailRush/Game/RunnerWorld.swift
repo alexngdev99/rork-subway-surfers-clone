@@ -82,6 +82,8 @@ final class RunnerWorld {
     private var dogContainer = Entity()
     /// Wearable jetpack prop shown on the runner's back while flying.
     private var jetpackProp: Entity?
+    /// Flame particle emitters under the jetpack thruster tubes.
+    private var jetpackFlames: [Entity] = []
 
     // Pools
     private var trainPool: [ObstacleNode] = []
@@ -278,6 +280,58 @@ final class RunnerWorld {
         container.isEnabled = false
         playerContainer.addChild(container)
         jetpackProp = container
+
+        // Two downward flame jets under the thruster tubes.
+        let bounds = container.visualBounds(relativeTo: container)
+        let nozzleX = max(0.08, bounds.extents.x * 0.22)
+        jetpackFlames = [-nozzleX, nozzleX].map { x in
+            let flame = Self.makeThrusterFlame()
+            flame.position = [x, -0.03, 0]
+            flame.isEnabled = false
+            container.addChild(flame)
+            return flame
+        }
+    }
+
+    /// Additive orange-yellow flame cone shooting downward out of a nozzle.
+    private static func makeThrusterFlame() -> Entity {
+        let flame = Entity()
+        var particles = ParticleEmitterComponent()
+        particles.emitterShape = .cone
+        particles.emitterShapeSize = [0.045, 0.015, 0.045]
+        particles.birthLocation = .volume
+        particles.speed = 2.0
+        particles.speedVariation = 0.6
+        particles.mainEmitter.birthRate = 320
+        particles.mainEmitter.lifeSpan = 0.28
+        particles.mainEmitter.lifeSpanVariation = 0.08
+        particles.mainEmitter.size = 0.055
+        particles.mainEmitter.sizeVariation = 0.02
+        particles.mainEmitter.spreadingAngle = 0.14
+        particles.mainEmitter.blendMode = .additive
+        particles.mainEmitter.color = .evolving(
+            start: .random(
+                a: UIColor(red: 1.0, green: 0.93, blue: 0.5, alpha: 0.95),
+                b: UIColor(red: 1.0, green: 0.6, blue: 0.15, alpha: 0.95)
+            ),
+            end: .single(UIColor(red: 0.95, green: 0.25, blue: 0.05, alpha: 0))
+        )
+        flame.components.set(particles)
+        // The cone emits along +Y; flip so the exhaust shoots downward.
+        flame.orientation = simd_quatf(angle: .pi, axis: [1, 0, 0])
+        return flame
+    }
+
+    /// Toggles the thruster feedback (flame particles + looping jet sound).
+    /// Thrust cuts out the moment the power-up expires, while the hang pose and
+    /// prop stay on through the descent until touchdown.
+    private func setJetpackThrust(active: Bool) {
+        for flame in jetpackFlames { flame.isEnabled = active }
+        if active {
+            audio.startJetpackLoop()
+        } else {
+            audio.stopJetpackLoop()
+        }
     }
 
     /// Switches the runner between flight visuals (hang clip + jetpack prop)
@@ -290,6 +344,7 @@ final class RunnerWorld {
                 runnerAnimator?.setLoop(fly)
             }
         } else {
+            setJetpackThrust(active: false)
             runnerAnimator?.setLoop(GeneratedAssets.runnerRun)
         }
     }
@@ -425,6 +480,7 @@ final class RunnerWorld {
         jetpackActive = false
         jetpackVisualsActive = false
         jetpackProp?.isEnabled = false
+        setJetpackThrust(active: false)
         inspectorGraceTimer = 0
         inspectorIntroTimer = 2.6
         inspectorTargetZ = 3.4
@@ -450,6 +506,7 @@ final class RunnerWorld {
         state.isPaused = false
         jetpackVisualsActive = false
         jetpackProp?.isEnabled = false
+        setJetpackThrust(active: false)
         runnerAnimator?.setLoop(GeneratedAssets.runnerIdle)
         inspectorAnimator?.setLoop(nil)
         inspectorContainer.isEnabled = false
@@ -826,7 +883,11 @@ final class RunnerWorld {
             state.powerUpProgress = Double(max(0, powerUpTimer / active.duration))
             if powerUpTimer <= 0 {
                 if active == .doubleScore { state.multiplier = 1 }
-                if active == .jetpack { jetpackActive = false }
+                if active == .jetpack {
+                    jetpackActive = false
+                    // Cut the thrust; hang pose + prop persist through the descent.
+                    setJetpackThrust(active: false)
+                }
                 state.activePowerUp = nil
                 state.powerUpProgress = 0
             }
@@ -848,6 +909,7 @@ final class RunnerWorld {
             isSliding = false
             slideTimer = 0
             setJetpackVisuals(active: true)
+            setJetpackThrust(active: true)
         case .magnet:
             break
         }
@@ -966,6 +1028,7 @@ final class RunnerWorld {
         resetJumpFlip()
         jetpackVisualsActive = false
         jetpackProp?.isEnabled = false
+        setJetpackThrust(active: false)
         haptics.crash()
         audio.play(.crash)
         audio.stopMusic()

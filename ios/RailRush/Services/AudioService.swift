@@ -16,12 +16,20 @@ final class AudioService {
     private var sfxPlayers: [String: [AVAudioPlayer]] = [:]
     private var sfxIndex: [String: Int] = [:]
 
+    private var jetpackPlayer: AVAudioPlayer?
+    private var isJetpackLoopActive = false
+
     var isMuted = false {
-        didSet { musicPlayer?.volume = isMuted ? 0 : musicVolume }
+        didSet {
+            musicPlayer?.volume = isMuted ? 0 : musicVolume
+            jetpackPlayer?.volume = isMuted ? 0 : jetpackVolume
+        }
     }
 
     private let musicVolume: Float = 0.45
+    private let jetpackVolume: Float = 0.75
     private let musicResourceName = "funky_runner_theme"
+    private let jetpackLoopResourceName = "jetpack_thruster_loop"
 
     private init() {
         configureSession()
@@ -68,6 +76,29 @@ final class AudioService {
 
     func stopMusic() {
         musicPlayer?.stop()
+    }
+
+    /// Starts the looping jetpack thruster sound (plays until stopped).
+    func startJetpackLoop() {
+        guard !isJetpackLoopActive else { return }
+        if jetpackPlayer == nil,
+           let url = Bundle.main.url(forResource: jetpackLoopResourceName, withExtension: "mp3") {
+            jetpackPlayer = try? AVAudioPlayer(contentsOf: url)
+            jetpackPlayer?.numberOfLoops = -1
+            jetpackPlayer?.prepareToPlay()
+        }
+        guard let jetpackPlayer else { return }
+        isJetpackLoopActive = true
+        jetpackPlayer.volume = isMuted ? 0 : jetpackVolume
+        jetpackPlayer.currentTime = 0
+        jetpackPlayer.play()
+    }
+
+    /// Stops the jetpack thruster loop with a quick natural cutoff.
+    func stopJetpackLoop() {
+        guard isJetpackLoopActive else { return }
+        isJetpackLoopActive = false
+        jetpackPlayer?.stop()
     }
 
     func play(_ effect: SoundEffect) {
