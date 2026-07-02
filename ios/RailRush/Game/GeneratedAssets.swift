@@ -43,12 +43,12 @@ enum GeneratedAssets {
     // MARK: Runner animation resource names (nil when the clip was not generated)
 
     static let runnerRun: String? = "cartoon_street_runner-anim-run-fast-3-inplace"
-    // Jump clip failed on Meshy's side 4 times across 3 different clips
-    // (Jump_Over_Obstacle_2_inplace ×2, Jump_Over_Obstacle_inplace,
-    // Jump_Run_inplace — all "Animation USDZ URL is missing").
-    // The game uses a procedural front-flip during jumps instead
-    // (RunnerWorld.updateJumpFlip) while the run loop keeps playing.
-    static let runnerJump: String? = nil
+    // Jump_Run generated successfully (earlier inplace jump variants failed on
+    // Meshy's side). When this is non-nil, RunnerWorld plays the clip on jump
+    // and skips the procedural front-flip fallback.
+    static let runnerJump: String? = "cartoon_street_runner-anim-jump-run"
+    // Alternate jump clip, kept as a bundled backup (not wired by default).
+    static let runnerJumpAlt: String? = "cartoon_street_runner-anim-regular-jump"
     static let runnerSlide: String? = "cartoon_street_runner-anim-slide-light"
     static let runnerKnockDown: String? = "cartoon_street_runner-anim-knock-down"
     static let runnerIdle: String? = "cartoon_street_runner-anim-idle"

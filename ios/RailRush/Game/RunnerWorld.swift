@@ -523,12 +523,12 @@ final class RunnerWorld {
         playerContainer.orientation = simd_quatf(angle: lean, axis: [0, 0, 1])
     }
 
-    /// Procedural front-flip while airborne. The Meshy jump clip repeatedly
-    /// failed to generate for this model, so the flip sells the jump visually
-    /// while the run loop keeps playing. Progress tracks the jump physics
+    /// Procedural front-flip while airborne — fallback used only when the
+    /// generated Jump_Run clip is unavailable. Progress tracks the jump physics
     /// (takeoff → landing maps to 0 → 1), so the rotation completes exactly a
     /// full turn on touchdown — even when a swipe-down fast-fall shortens the arc.
     private func updateJumpFlip() {
+        guard GeneratedAssets.runnerJump == nil else { return }
         guard let runtime = playerContainer.findEntity(named: "generated_model_runtime") else { return }
         if isJumping, !jetpackActive {
             let span = 2 * WorldConfig.jumpVelocity
