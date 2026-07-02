@@ -72,7 +72,9 @@ enum GeneratedAssets {
 
     // MARK: Runner animation resource names (nil when the clip was not generated)
 
-    static let runnerRun: String? = "cartoon_street_runner-anim-run-fast-3-inplace"
+    static let runnerRun: String? = "cartoon_street_runner-anim-runfast"
+    // Previous run loop kept as a bundled backup (not wired by default).
+    static let runnerRunAlt: String? = "cartoon_street_runner-anim-run-fast-3-inplace"
     // Jump_Run generated successfully (earlier inplace jump variants failed on
     // Meshy's side). When this is non-nil, RunnerWorld plays the clip on jump
     // and skips the procedural front-flip fallback.

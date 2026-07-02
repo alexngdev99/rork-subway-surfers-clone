@@ -10,9 +10,9 @@ enum WorldConfig {
     static let laneXs: [Float] = [-2, 0, 2]
     static let spawnZ: Float = -75
     static let despawnZ: Float = 14
-    static let baseSpeed: Float = 7
-    static let maxSpeed: Float = 19
-    static let speedRamp: Float = 0.13
+    static let baseSpeed: Float = 9.5
+    static let maxSpeed: Float = 24
+    static let speedRamp: Float = 0.2
     static let gravity: Float = -26
     static let jumpVelocity: Float = 8.8
     static let slideDuration: Float = 0.85
@@ -750,7 +750,7 @@ final class RunnerWorld {
     private func updatePlayer(dt: Float) {
         // Lane lerp
         let targetX = WorldConfig.laneXs[laneIndex]
-        playerX += (targetX - playerX) * min(1, dt * 12)
+        playerX += (targetX - playerX) * min(1, dt * 14)
 
         if jetpackActive {
             // Cruise at flight altitude with a gentle thruster hover bob.
