@@ -31,13 +31,10 @@ enum GeneratedAssets {
     static let buildingModel = "graffiti_city_building"
     static let treeModel = "city_tree"
     static let lampModel = "railway_signal_lamp"
-    /// Generated railway track surface tile — shiny rails + chunky reddish
-    /// sleepers on a packed dirt bed (Subway Surfers style, replaces the old
-    /// grey-ballast tile). nil resource name → procedural rails fallback.
-    static let trackTileModel: String? = "dirt_railway_track"
-    /// Flat dirt ground tile (brown earth + green moss patches) cloned across
-    /// the track bed, Subway Surfers style. nil → flat procedural ballast box.
-    static let groundTileModel: String? = "dirt_ground_tile"
+    // NOTE: generated track/ground tile models were removed — AI generation
+    // repeatedly produced corrupted textures on flat tiled surfaces. The track
+    // bed (dirt, rails, sleepers, moss) is now built procedurally in
+    // TrackBuilder.addTrackBed for a guaranteed-clean Subway Surfers look.
     /// Additional building styles arranged into the front street row.
     static let shopBuildingModel: String? = "brick_shop_building"
     static let apartmentBuildingModel: String? = "city_apartment_building"

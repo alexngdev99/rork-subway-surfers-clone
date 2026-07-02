@@ -14,14 +14,6 @@ enum TrackBuilder {
         var buildings: [Entity] = []
         var tree: Entity?
         var lamp: Entity?
-        /// One lane-width track surface tile (rails + sleepers + ballast).
-        var trackTile: Entity?
-        /// Z-length of the normalized track tile, for cloning along a segment.
-        var trackTileLength: Float = 8
-        /// Full-width dirt ground slab tile cloned along the track bed.
-        var groundTile: Entity?
-        /// Z-length of the normalized ground tile, for cloning along a segment.
-        var groundTileLength: Float = 10
     }
 
     static var decorPrototypes = DecorPrototypes()
@@ -68,14 +60,6 @@ enum TrackBuilder {
             )
             decorPrototypes.buildings.append(container)
         }
-        if let name = GeneratedAssets.trackTileModel,
-           let visual = try? await Entity(named: name) {
-            loadTrackTilePrototype(visual)
-        }
-        if let name = GeneratedAssets.groundTileModel,
-           let visual = try? await Entity(named: name) {
-            loadGroundTilePrototype(visual)
-        }
         if let visual = try? await Entity(named: GeneratedAssets.treeModel) {
             let container = Entity()
             attachGeneratedModelVisual(
@@ -101,59 +85,6 @@ enum TrackBuilder {
         }
     }
 
-    /// Normalizes the generated track tile: length runs along Z, width matches
-    /// one lane's track bed, and the rail top surface sits just above ground.
-    private static func loadTrackTilePrototype(_ visual: Entity) {
-        let container = Entity()
-        container.addChild(visual)
-
-        // The tile has no persisted front metadata — infer the long axis from
-        // real bounds so rails always run down the track (Z axis).
-        var bounds = visual.visualBounds(relativeTo: container)
-        if bounds.extents.x > bounds.extents.z {
-            visual.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0]) * visual.orientation
-            bounds = visual.visualBounds(relativeTo: container)
-        }
-
-        // Scale by WIDTH so the rail gauge visually matches one 2 m lane.
-        let targetWidth: Float = 2.5
-        visual.scale *= SIMD3<Float>(repeating: targetWidth / max(bounds.extents.x, 0.001))
-
-        bounds = visual.visualBounds(relativeTo: container)
-        // Center X/Z; sink the tile so the rail tops sit ~0.16 m above ground
-        // (the ballast body hides inside the procedural bed below).
-        visual.position -= SIMD3<Float>(bounds.center.x, bounds.max.y - 0.16, bounds.center.z)
-
-        decorPrototypes.trackTile = container
-        decorPrototypes.trackTileLength = max(bounds.extents.z, 2)
-    }
-
-    /// Normalizes the generated dirt ground slab: width spans the full track
-    /// bed, length runs along Z, and the dirt top surface sits at ground level
-    /// (just below rails/sleepers so nothing z-fights).
-    private static func loadGroundTilePrototype(_ visual: Entity) {
-        let container = Entity()
-        container.addChild(visual)
-
-        // No persisted front metadata — make the LONG side run down the track (Z).
-        var bounds = visual.visualBounds(relativeTo: container)
-        if bounds.extents.x > bounds.extents.z {
-            visual.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0]) * visual.orientation
-            bounds = visual.visualBounds(relativeTo: container)
-        }
-
-        // Scale by WIDTH so one tile covers the whole 9.6 m track bed.
-        let targetWidth: Float = 9.6
-        visual.scale *= SIMD3<Float>(repeating: targetWidth / max(bounds.extents.x, 0.001))
-
-        bounds = visual.visualBounds(relativeTo: container)
-        // Center X/Z; sink so the dirt top sits ~2 cm below rail bases.
-        visual.position -= SIMD3<Float>(bounds.center.x, bounds.max.y + 0.02, bounds.center.z)
-
-        decorPrototypes.groundTile = container
-        decorPrototypes.groundTileLength = max(bounds.extents.z, 3)
-    }
-
     private static let buildingPalette: [UIColor] = [
         UIColor(red: 0.95, green: 0.55, blue: 0.25, alpha: 1),
         UIColor(red: 0.36, green: 0.62, blue: 0.72, alpha: 1),
@@ -167,70 +98,7 @@ enum TrackBuilder {
     static func makeSegment() -> Entity {
         let segment = Entity()
 
-        if let ground = decorPrototypes.groundTile {
-            // Generated dirt ground: clone the slab down the segment, plus a
-            // thin dark base box underneath to hide any seams.
-            let base = ModelEntity(
-                mesh: .generateBox(size: [9.6, 0.2, segmentLength]),
-                materials: [SimpleMaterial(color: UIColor(red: 0.34, green: 0.24, blue: 0.17, alpha: 1), roughness: 0.95, isMetallic: false)]
-            )
-            base.position = [0, -0.14, 0]
-            segment.addChild(base)
-
-            let step = decorPrototypes.groundTileLength * 0.98
-            let count = Int((segmentLength / step).rounded(.up))
-            for i in 0..<count {
-                let clone = ground.clone(recursive: true)
-                clone.position = [0, 0, -segmentLength / 2 + step * (Float(i) + 0.5)]
-                segment.addChild(clone)
-            }
-        } else {
-            // Procedural fallback ballast bed.
-            let ballast = ModelEntity(
-                mesh: .generateBox(size: [9.6, 0.2, segmentLength]),
-                materials: [SimpleMaterial(color: UIColor(red: 0.26, green: 0.24, blue: 0.28, alpha: 1), roughness: 0.9, isMetallic: false)]
-            )
-            ballast.position = [0, -0.1, 0]
-            segment.addChild(ballast)
-        }
-
-        if let tile = decorPrototypes.trackTile {
-            // Generated track surface: clone the tile down each lane.
-            let step = decorPrototypes.trackTileLength * 0.99
-            let count = Int((segmentLength / step).rounded(.up))
-            for laneX in laneXs {
-                for i in 0..<count {
-                    let clone = tile.clone(recursive: true)
-                    clone.position = [laneX, 0, -segmentLength / 2 + step * (Float(i) + 0.5)]
-                    segment.addChild(clone)
-                }
-            }
-        } else {
-            // Procedural fallback: rails + sleepers.
-            let railMaterial = SimpleMaterial(color: UIColor(white: 0.75, alpha: 1), roughness: 0.35, isMetallic: true)
-            for laneX in laneXs {
-                for offset in [-0.62, 0.62] {
-                    let rail = ModelEntity(
-                        mesh: .generateBox(size: [0.09, 0.12, segmentLength]),
-                        materials: [railMaterial]
-                    )
-                    rail.position = [laneX + Float(offset), 0.06, 0]
-                    segment.addChild(rail)
-                }
-            }
-
-            let sleeperMaterial = SimpleMaterial(color: UIColor(red: 0.35, green: 0.27, blue: 0.2, alpha: 1), roughness: 0.85, isMetallic: false)
-            let sleeperCount = 16
-            let spacing = segmentLength / Float(sleeperCount)
-            for i in 0..<sleeperCount {
-                let sleeper = ModelEntity(
-                    mesh: .generateBox(size: [8.6, 0.06, 0.5]),
-                    materials: [sleeperMaterial]
-                )
-                sleeper.position = [0, 0.01, -segmentLength / 2 + spacing * (Float(i) + 0.5)]
-                segment.addChild(sleeper)
-            }
-        }
+        addTrackBed(to: segment)
 
         // Side containment walls with graffiti-toned stripes
         for side in [Float(-1), 1] {
@@ -263,6 +131,82 @@ enum TrackBuilder {
         randomizeDecor(on: segment)
 
         return segment
+    }
+
+    /// Subway Surfers-style track bed, built procedurally for a guaranteed
+    /// clean look: packed brown dirt, per-lane red-brown sleepers with shiny
+    /// purple-tinted rails, and moss patches + pebbles in the dirt strips.
+    private static func addTrackBed(to segment: Entity) {
+        // Full-width packed dirt bed; top surface sits at y = 0.
+        let bed = ModelEntity(
+            mesh: .generateBox(size: [9.6, 0.24, segmentLength]),
+            materials: [SimpleMaterial(color: UIColor(red: 0.55, green: 0.4, blue: 0.26, alpha: 1), roughness: 1, isMetallic: false)]
+        )
+        bed.position = [0, -0.12, 0]
+        segment.addChild(bed)
+
+        // Shared meshes/materials — sleepers and rails are cloned many times.
+        let sleeperMesh = MeshResource.generateBox(size: [1.6, 0.1, 0.42], cornerRadius: 0.03)
+        let sleeperMaterial = SimpleMaterial(color: UIColor(red: 0.58, green: 0.22, blue: 0.16, alpha: 1), roughness: 0.85, isMetallic: false)
+        let railMesh = MeshResource.generateBox(size: [0.1, 0.12, segmentLength])
+        let railMaterial = SimpleMaterial(color: UIColor(red: 0.72, green: 0.7, blue: 0.82, alpha: 1), roughness: 0.32, isMetallic: true)
+
+        let sleeperSpacing: Float = 1.4
+        let sleeperCount = Int(segmentLength / sleeperSpacing)
+
+        for laneX in laneXs {
+            for i in 0..<sleeperCount {
+                let sleeper = ModelEntity(mesh: sleeperMesh, materials: [sleeperMaterial])
+                sleeper.position = [laneX, 0.05, -segmentLength / 2 + sleeperSpacing * (Float(i) + 0.5)]
+                segment.addChild(sleeper)
+            }
+            for offset in [Float(-0.62), 0.62] {
+                let rail = ModelEntity(mesh: railMesh, materials: [railMaterial])
+                rail.position = [laneX + offset, 0.16, 0]
+                segment.addChild(rail)
+            }
+        }
+
+        // Moss patches on the outer dirt shoulders (like the reference art).
+        let mossColors: [UIColor] = [
+            UIColor(red: 0.42, green: 0.6, blue: 0.24, alpha: 1),
+            UIColor(red: 0.36, green: 0.54, blue: 0.22, alpha: 1),
+            UIColor(red: 0.5, green: 0.66, blue: 0.28, alpha: 1),
+        ]
+        for _ in 0..<10 {
+            let width = Float.random(in: 0.7...1.5)
+            let depth = Float.random(in: 0.6...1.2)
+            let moss = ModelEntity(
+                mesh: .generateBox(size: [width, 0.05, depth], cornerRadius: 0.025),
+                materials: [SimpleMaterial(color: mossColors.randomElement() ?? mossColors[0], roughness: 1, isMetallic: false)]
+            )
+            let side: Float = Bool.random() ? 1 : -1
+            moss.position = [
+                side * Float.random(in: 3.3...4.3),
+                0.012,
+                Float.random(in: -segmentLength / 2 + 1 ... segmentLength / 2 - 1),
+            ]
+            segment.addChild(moss)
+        }
+
+        // Small pebbles scattered across the dirt strips between the tracks.
+        let pebbleMaterial = SimpleMaterial(color: UIColor(red: 0.62, green: 0.58, blue: 0.55, alpha: 1), roughness: 0.9, isMetallic: false)
+        let pebbleBands: [ClosedRange<Float>] = [(-4.4)...(-3.1), (-1.12)...(-0.88), 0.88...1.12, 3.1...4.4]
+        for _ in 0..<8 {
+            let size = Float.random(in: 0.1...0.2)
+            let pebble = ModelEntity(
+                mesh: .generateBox(size: [size, size * 0.6, size], cornerRadius: size * 0.25),
+                materials: [pebbleMaterial]
+            )
+            let band = pebbleBands.randomElement() ?? pebbleBands[0]
+            pebble.position = [
+                Float.random(in: band),
+                0.02,
+                Float.random(in: -segmentLength / 2 + 0.5 ... segmentLength / 2 - 0.5),
+            ]
+            pebble.orientation = simd_quatf(angle: Float.random(in: 0...(2 * .pi)), axis: [0, 1, 0])
+            segment.addChild(pebble)
+        }
     }
 
     /// Clones the loaded prototypes into a segment's generated-decor container.
