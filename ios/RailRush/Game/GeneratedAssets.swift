@@ -51,6 +51,15 @@ enum GeneratedAssets {
     static let lampFrontAxis: GeneratedModelAxis? = .positiveZ
     static let lampUpAxis: GeneratedModelAxis = .positiveY
 
+    // MARK: Jetpack power-up prop (bundled USDZ, no extension)
+
+    /// Wearable jetpack model shown on the runner's back while flying.
+    /// nil resource name → flight mode runs without a visible prop.
+    static let jetpackModel: String? = "cartoon_jetpack"
+    // Orientation metadata: thruster face is the front (+Z), harness straps on the back.
+    static let jetpackFrontAxis: GeneratedModelAxis? = .positiveZ
+    static let jetpackUpAxis: GeneratedModelAxis = .positiveY
+
     // MARK: Runner animation resource names (nil when the clip was not generated)
 
     static let runnerRun: String? = "cartoon_street_runner-anim-run-fast-3-inplace"
@@ -61,6 +70,11 @@ enum GeneratedAssets {
     // Alternate jump clip, kept as a bundled backup (not wired by default).
     static let runnerJumpAlt: String? = "cartoon_street_runner-anim-regular-jump"
     static let runnerSlide: String? = "cartoon_street_runner-anim-slide-light"
+    /// Airborne hang pose looped while the jetpack power-up is active.
+    /// nil → the run loop keeps playing in the air (pre-generation fallback).
+    static let runnerFly: String? = "cartoon_street_runner-anim-bar-hang-idle"
+    /// Alternate hang clip kept as a bundled backup (not wired by default).
+    static let runnerFlyAlt: String? = "cartoon_street_runner-anim-rope-hang-idle"
     static let runnerKnockDown: String? = "cartoon_street_runner-anim-knock-down"
     static let runnerIdle: String? = "cartoon_street_runner-anim-idle"
 

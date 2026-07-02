@@ -80,6 +80,8 @@ final class RunnerWorld {
     private var inspectorContainer = Entity()
     private var inspectorAnimator: GeneratedModelAnimationPlayer?
     private var dogContainer = Entity()
+    /// Wearable jetpack prop shown on the runner's back while flying.
+    private var jetpackProp: Entity?
 
     // Pools
     private var trainPool: [ObstacleNode] = []
@@ -107,6 +109,9 @@ final class RunnerWorld {
     private var nextSpawnGap: Float = 16
     private var powerUpTimer: Float = 0
     private var jetpackActive = false
+    /// Keeps the hang pose + prop visible during the descent after the
+    /// jetpack expires, until the runner touches the ground.
+    private var jetpackVisualsActive = false
     private var inspectorGraceTimer: Float = 0
     private var inspectorTargetZ: Float = 8.5
     private var inspectorIntroTimer: Float = 0
@@ -214,9 +219,11 @@ final class RunnerWorld {
                 GeneratedAssets.runnerSlide,
                 GeneratedAssets.runnerKnockDown,
                 GeneratedAssets.runnerIdle,
+                GeneratedAssets.runnerFly,
             ].compactMap { $0 }
         )
         runnerAnimator = runnerPlayer
+        await buildJetpackProp()
         state.loadingProgress = 0.6
 
         inspectorContainer = await makeGeneratedModelContainer(
@@ -247,6 +254,44 @@ final class RunnerWorld {
             fallback: { TrackBuilder.makeFallbackDog() }
         )
         actors.addChild(dogContainer)
+    }
+
+    /// Loads the generated jetpack model and straps it to the runner's back
+    /// (hidden until the power-up activates). No procedural fallback — without
+    /// the model, flight mode simply runs prop-less.
+    private func buildJetpackProp() async {
+        guard let resourceName = GeneratedAssets.jetpackModel,
+              let visual = try? await Entity(named: resourceName) else { return }
+
+        let container = Entity()
+        attachGeneratedModelVisual(
+            visual,
+            to: container,
+            targetHeight: 0.95,
+            localFrontAxis: GeneratedAssets.jetpackFrontAxis,
+            localUpAxis: GeneratedAssets.jetpackUpAxis,
+            // Runner faces -Z; thruster face points back toward the camera.
+            desiredWorldForward: [0, 0, 1]
+        )
+        // Worn on the back: player back is +Z, chest-height mount.
+        container.position = [0, 0.62, 0.34]
+        container.isEnabled = false
+        playerContainer.addChild(container)
+        jetpackProp = container
+    }
+
+    /// Switches the runner between flight visuals (hang clip + jetpack prop)
+    /// and normal ground visuals.
+    private func setJetpackVisuals(active: Bool) {
+        jetpackVisualsActive = active
+        jetpackProp?.isEnabled = active
+        if active {
+            if let fly = GeneratedAssets.runnerFly {
+                runnerAnimator?.setLoop(fly)
+            }
+        } else {
+            runnerAnimator?.setLoop(GeneratedAssets.runnerRun)
+        }
     }
 
     private func buildPools() async {
@@ -378,6 +423,8 @@ final class RunnerWorld {
         nextSpawnGap = 14
         powerUpTimer = 0
         jetpackActive = false
+        jetpackVisualsActive = false
+        jetpackProp?.isEnabled = false
         inspectorGraceTimer = 0
         inspectorIntroTimer = 2.6
         inspectorTargetZ = 3.4
@@ -401,6 +448,8 @@ final class RunnerWorld {
     func returnHome() {
         state.phase = .home
         state.isPaused = false
+        jetpackVisualsActive = false
+        jetpackProp?.isEnabled = false
         runnerAnimator?.setLoop(GeneratedAssets.runnerIdle)
         inspectorAnimator?.setLoop(nil)
         inspectorContainer.isEnabled = false
@@ -525,16 +574,26 @@ final class RunnerWorld {
         playerX += (targetX - playerX) * min(1, dt * 12)
 
         if jetpackActive {
-            playerY += (WorldConfig.jetpackHeight - playerY) * min(1, dt * 4)
+            // Cruise at flight altitude with a gentle thruster hover bob.
+            let hoverTarget = WorldConfig.jetpackHeight + sin(runTime * 3.2) * 0.14
+            playerY += (hoverTarget - playerY) * min(1, dt * 4)
             verticalVelocity = 0
             isJumping = false
         } else if isJumping || playerY > 0.01 {
+            // After the jetpack expires the runner descends here under gravity;
+            // keep a soft cap on fall speed so the touchdown reads clean.
             verticalVelocity += WorldConfig.gravity * dt
+            if jetpackVisualsActive {
+                verticalVelocity = max(verticalVelocity, -9)
+            }
             playerY += verticalVelocity * dt
             if playerY <= 0 {
                 playerY = 0
                 verticalVelocity = 0
                 isJumping = false
+                if jetpackVisualsActive {
+                    setJetpackVisuals(active: false)
+                }
             }
         }
 
@@ -788,6 +847,7 @@ final class RunnerWorld {
             jetpackActive = true
             isSliding = false
             slideTimer = 0
+            setJetpackVisuals(active: true)
         case .magnet:
             break
         }
@@ -904,6 +964,8 @@ final class RunnerWorld {
         crashHandled = true
         shakeTimer = 0.6
         resetJumpFlip()
+        jetpackVisualsActive = false
+        jetpackProp?.isEnabled = false
         haptics.crash()
         audio.play(.crash)
         audio.stopMusic()
