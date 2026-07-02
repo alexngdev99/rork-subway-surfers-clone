@@ -108,7 +108,9 @@ final class RunnerWorld {
     private var trainPool: [ObstacleNode] = []
     private var lowBarrierPool: [ObstacleNode] = []
     private var overheadBarrierPool: [ObstacleNode] = []
-    private var trainTemplate: Entity?
+    /// Normalized train visual templates — base subway train plus extra style
+    /// variants; the pool cycles across them for visual variety.
+    private var trainTemplates: [Entity] = []
     private var coinPool: [CoinNode] = []
     private var powerUpPools: [PowerUpType: [PowerUpNode]] = [:]
     private var burstPool: [BurstNode] = []
@@ -442,22 +444,46 @@ final class RunnerWorld {
     }
 
     private func buildPools() async {
-        // Train template: load the generated model once, clone for the pool.
-        let trainVisualTemplate = (try? await Entity(named: GeneratedAssets.trainModel)) ?? TrackBuilder.makeFallbackTrain()
-        trainTemplate = trainVisualTemplate
+        // Train templates: the base subway train plus extra style variants,
+        // each loaded once and cloned into the pool for visual variety.
+        var trainVisualTemplates: [(visual: Entity, frontAxis: GeneratedModelAxis?)] = []
+        if let base = try? await Entity(named: GeneratedAssets.trainModel) {
+            trainVisualTemplates.append((base, GeneratedAssets.trainFrontAxis))
+        }
+        for style in GeneratedAssets.extraTrainStyles {
+            if let visual = try? await Entity(named: style.model) {
+                trainVisualTemplates.append((visual, style.frontAxis))
+            }
+        }
+        if trainVisualTemplates.isEmpty {
+            // Procedural fallback train: its cab face sits on +Z.
+            trainVisualTemplates = [(TrackBuilder.makeFallbackTrain(), .positiveZ)]
+        }
+        trainTemplates = trainVisualTemplates.map(\.visual)
 
-        // No persisted orientation metadata for the train — infer its length
-        // axis from real bounds so cars always run along the track (Z axis).
-        let trainBounds = trainVisualTemplate.visualBounds(relativeTo: nil)
-        let trainFrontAxis: GeneratedModelAxis = trainBounds.extents.x > trainBounds.extents.z ? .positiveX : .positiveZ
+        // Two pool nodes per style (minimum 6 nodes total so dense rows never
+        // starve the pool when only the base train is available).
+        let trainPoolSize = max(6, trainVisualTemplates.count * 2)
+        for index in 0..<trainPoolSize {
+            let (template, styleFrontAxis) = trainVisualTemplates[index % trainVisualTemplates.count]
 
-        for _ in 0..<6 {
+            // Persisted front-axis metadata when available; directionless cars
+            // infer their length axis from real bounds so they always run
+            // along the track (Z).
+            let frontAxis: GeneratedModelAxis
+            if let styleFrontAxis {
+                frontAxis = styleFrontAxis
+            } else {
+                let bounds = template.visualBounds(relativeTo: nil)
+                frontAxis = bounds.extents.x > bounds.extents.z ? .positiveX : .positiveZ
+            }
+
             let container = Entity()
             attachGeneratedModelVisual(
-                trainVisualTemplate.clone(recursive: true),
+                template.clone(recursive: true),
                 to: container,
                 targetHeight: 2.8,
-                localFrontAxis: trainFrontAxis,
+                localFrontAxis: frontAxis,
                 localUpAxis: GeneratedAssets.trainUpAxis,
                 desiredWorldForward: [0, 0, 1] // oncoming: front faces the runner
             )
@@ -936,7 +962,8 @@ final class RunnerWorld {
         lanes.removeFirst(trainLaneCount)
 
         for lane in trainLanes {
-            guard let node = trainPool.first(where: { !$0.isActive }) else { continue }
+            // Random inactive node so the mixed train styles appear evenly.
+            guard let node = trainPool.filter({ !$0.isActive }).randomElement() else { continue }
             let moving = runTime > 25 && Bool.random()
             node.extraSpeed = moving ? Float.random(in: 4...7) : 0
             node.entity.position = [WorldConfig.laneXs[lane], 0, WorldConfig.spawnZ - node.halfExtents.z]

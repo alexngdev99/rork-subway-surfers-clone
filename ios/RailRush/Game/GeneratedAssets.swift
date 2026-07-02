@@ -15,6 +15,14 @@ struct RunnerCharacterAssets: Identifiable, Equatable {
     let idle: String?
 }
 
+/// One extra train visual style: bundled resource name plus optional persisted
+/// front-axis metadata. nil frontAxis → directionless car; the length axis is
+/// inferred from measured bounds at load time.
+struct TrainStyleAsset {
+    let model: String
+    let frontAxis: GeneratedModelAxis?
+}
+
 /// Central registry of generated asset resource names and orientation metadata.
 /// Resource names are finalized from the asset generation output — if a model or
 /// animation is missing from the bundle the game falls back to procedural geometry.
@@ -25,6 +33,16 @@ enum GeneratedAssets {
     static let inspectorModel = "grumpy_security_officer"
     static let dogModel = "guard_dog"
     static let trainModel = "subway_train"
+    /// Extra train style variants cycled through the obstacle pool for visual
+    /// variety. Missing files are skipped so the base subway train remains the
+    /// guaranteed fallback. (Two more styles — red express + vintage tram —
+    /// were cancelled at the preview step by the user.)
+    static let extraTrainStyles: [TrainStyleAsset] = [
+        // Graffiti subway car — persisted metadata: front cab (windshield) on +X.
+        TrainStyleAsset(model: "graffiti_subway_car", frontAxis: .positiveX),
+        // Freight boxcar — symmetric/directionless; length axis inferred from bounds.
+        TrainStyleAsset(model: "freight_boxcar", frontAxis: nil),
+    ]
     static let coinModel = "gold_coin"
 
     // MARK: Orientation metadata (from generation output; defaults until finalized)
