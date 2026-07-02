@@ -123,9 +123,10 @@ enum GeneratedAssets {
     static let runnerJump: String? = "cartoon_street_runner-anim-jump-run"
     // Alternate jump clip, kept as a bundled backup (not wired by default).
     static let runnerJumpAlt: String? = "cartoon_street_runner-anim-regular-jump"
-    static let runnerSlide: String? = "cartoon_street_runner-anim-roll-dodge-1"
-    // Previous slide clip kept as a bundled backup (not wired by default).
-    static let runnerSlideAlt: String? = "cartoon_street_runner-anim-slide-light"
+    // Slide clip. The downloaded roll-dodge replacement was removed: it looked
+    // bad and the boy's file actually contained the girl's model, so rolling
+    // as Max swapped in the wrong character.
+    static let runnerSlide: String? = "cartoon_street_runner-anim-slide-light"
     /// Airborne hang pose looped while the jetpack power-up is active.
     /// nil → the run loop keeps playing in the air (pre-generation fallback).
     static let runnerFly: String? = "cartoon_street_runner-anim-bar-hang-idle"
@@ -169,7 +170,7 @@ enum GeneratedAssets {
         upAxis: .positiveY,
         run: "cartoon_girl_runner-anim-runfast",
         jump: "cartoon_girl_runner-anim-jump-run",
-        slide: "cartoon_girl_runner-anim-roll-dodge-1",
+        slide: "cartoon_girl_runner-anim-slide-light",
         fly: "cartoon_girl_runner-anim-bar-hang-idle",
         knockDown: "cartoon_girl_runner-anim-knock-down",
         idle: "cartoon_girl_runner-anim-idle"
