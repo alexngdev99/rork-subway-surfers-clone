@@ -125,6 +125,7 @@ final class RunnerWorld {
     func build(in content: RealityViewCameraContent) async {
         guard !isBuilt else { return }
         isBuilt = true
+        let loadStart = Date()
 
         sceneRoot.addChild(environment)
         sceneRoot.addChild(actors)
@@ -133,10 +134,12 @@ final class RunnerWorld {
 
         setupCameraAndLights(in: content)
         environment.addChild(TrackBuilder.makeBackdrop())
+        state.loadingProgress = 0.06
 
         // Generated environment decor prototypes must load before segments are
         // built so each segment can clone them once.
         await TrackBuilder.loadDecorPrototypes()
+        state.loadingProgress = 0.28
 
         // Scrolling track segments
         for i in 0..<3 {
@@ -145,14 +148,28 @@ final class RunnerWorld {
             environment.addChild(segment)
             segments.append(segment)
         }
+        state.loadingProgress = 0.36
 
         await buildActors()
+        state.loadingProgress = 0.78
         await buildPools()
+        state.loadingProgress = 0.97
 
         // Idle on the home screen
         runnerAnimator?.setLoop(GeneratedAssets.runnerIdle)
         inspectorContainer.isEnabled = false
         dogContainer.isEnabled = false
+        state.loadingProgress = 1
+
+        // Keep the splash visible long enough for the bar to finish smoothly
+        // and avoid a jarring flash on fast loads.
+        let minimumSplash: TimeInterval = 1.6
+        let elapsed = Date().timeIntervalSince(loadStart)
+        let remaining = max(0.45, minimumSplash - elapsed)
+        try? await Task.sleep(for: .seconds(remaining))
+
+        guard state.phase == .loading else { return }
+        state.phase = .home
     }
 
     private func setupCameraAndLights(in content: RealityViewCameraContent) {
@@ -187,6 +204,7 @@ final class RunnerWorld {
             fallback: { TrackBuilder.makeFallbackHumanoid(color: UIColor(red: 0.0, green: 0.72, blue: 0.68, alpha: 1)) }
         )
         actors.addChild(playerContainer)
+        state.loadingProgress = 0.44
 
         let runnerPlayer = GeneratedModelAnimationPlayer(container: playerContainer)
         await runnerPlayer.preload(
@@ -199,6 +217,7 @@ final class RunnerWorld {
             ].compactMap { $0 }
         )
         runnerAnimator = runnerPlayer
+        state.loadingProgress = 0.6
 
         inspectorContainer = await makeGeneratedModelContainer(
             resourceName: GeneratedAssets.inspectorModel,
@@ -216,6 +235,7 @@ final class RunnerWorld {
             [GeneratedAssets.inspectorRun, GeneratedAssets.inspectorIdle].compactMap { $0 }
         )
         inspectorAnimator = inspectorPlayer
+        state.loadingProgress = 0.72
 
         dogContainer = await makeGeneratedModelContainer(
             resourceName: GeneratedAssets.dogModel,
@@ -445,6 +465,8 @@ final class RunnerWorld {
         coinSpinAngle += dt * 4
 
         switch state.phase {
+        case .loading:
+            break
         case .home:
             updateIdleScene(dt: dt)
         case .running:

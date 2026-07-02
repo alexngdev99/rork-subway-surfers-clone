@@ -2,6 +2,7 @@ import Foundation
 
 /// High-level phase of the app / game session.
 enum GamePhase {
+    case loading
     case home
     case running
     case gameOver

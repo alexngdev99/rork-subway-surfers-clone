@@ -14,6 +14,8 @@ struct ContentView: View {
                 GameView(world: world)
 
                 switch gameState.phase {
+                case .loading:
+                    EmptyView()
                 case .home:
                     HomeView(state: gameState) {
                         world.startRun()
@@ -39,8 +41,16 @@ struct ContentView: View {
                     .transition(.opacity)
                 }
             }
+
+            // Opaque splash covers the scene until every 3D model is preloaded,
+            // so the player never sees a half-built white world.
+            if gameState.phase == .loading {
+                LoadingView(progress: gameState.loadingProgress)
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
         }
-        .animation(.easeInOut(duration: 0.3), value: gameState.phase)
+        .animation(.easeInOut(duration: 0.45), value: gameState.phase)
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
         .onAppear {

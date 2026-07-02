@@ -4,8 +4,11 @@ import Observation
 /// Observable game session state driving the SwiftUI HUD and overlays.
 @Observable
 final class GameState {
-    var phase: GamePhase = .home
+    var phase: GamePhase = .loading
     var isPaused = false
+
+    /// 0...1 progress of the initial 3D asset preload, drives the loading screen.
+    var loadingProgress: Double = 0
 
     // Live run values
     var score = 0
