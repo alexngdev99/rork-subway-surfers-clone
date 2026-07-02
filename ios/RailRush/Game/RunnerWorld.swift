@@ -366,6 +366,7 @@ final class RunnerWorld {
 
         playerContainer.position = [0, 0, 0]
         playerContainer.orientation = simd_quatf(angle: 0, axis: [0, 1, 0])
+        resetJumpFlip()
         inspectorContainer.isEnabled = true
         dogContainer.isEnabled = true
         inspectorContainer.position = [-0.7, 0, 5.5]
@@ -515,10 +516,36 @@ final class RunnerWorld {
         }
 
         playerContainer.position = [playerX, playerY, 0]
+        updateJumpFlip()
 
         // Lean into lane changes
         let lean = (targetX - playerX) * -0.14
         playerContainer.orientation = simd_quatf(angle: lean, axis: [0, 0, 1])
+    }
+
+    /// Procedural front-flip while airborne. The Meshy jump clip repeatedly
+    /// failed to generate for this model, so the flip sells the jump visually
+    /// while the run loop keeps playing. Progress tracks the jump physics
+    /// (takeoff → landing maps to 0 → 1), so the rotation completes exactly a
+    /// full turn on touchdown — even when a swipe-down fast-fall shortens the arc.
+    private func updateJumpFlip() {
+        guard let runtime = playerContainer.findEntity(named: "generated_model_runtime") else { return }
+        if isJumping, !jetpackActive {
+            let span = 2 * WorldConfig.jumpVelocity
+            let progress = min(1, max(0, (WorldConfig.jumpVelocity - verticalVelocity) / span))
+            let flip = simd_quatf(angle: -2 * .pi * progress, axis: [1, 0, 0])
+            let pivot = SIMD3<Float>(0, 0.95, 0)
+            runtime.orientation = flip
+            runtime.position = pivot - flip.act(pivot)
+        } else if runtime.orientation.angle > 0.0001 || simd_length(runtime.position) > 0.0001 {
+            resetJumpFlip()
+        }
+    }
+
+    private func resetJumpFlip() {
+        guard let runtime = playerContainer.findEntity(named: "generated_model_runtime") else { return }
+        runtime.orientation = simd_quatf(angle: 0, axis: [1, 0, 0])
+        runtime.position = .zero
     }
 
     private func scrollWorld(dt: Float) {
@@ -844,6 +871,7 @@ final class RunnerWorld {
     private func crash(reason: RunEndReason) {
         crashHandled = true
         shakeTimer = 0.6
+        resetJumpFlip()
         haptics.crash()
         audio.play(.crash)
         audio.stopMusic()
