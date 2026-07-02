@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Full-screen splash shown while all 3D models preload.
 /// Mirrors the classic endless-runner loading screen: big graffiti logo,
@@ -18,16 +19,26 @@ struct LoadingView: View {
         "Stumble twice and the inspector wins",
     ]
 
+    private var hasKeyArt: Bool {
+        UIImage(named: "boy_hoverboard_chase") != nil
+    }
+
     var body: some View {
         ZStack {
-            background
+            if hasKeyArt {
+                keyArtBackground
+            } else {
+                background
+            }
 
             VStack(spacing: 0) {
-                Spacer().frame(height: 70)
+                Spacer().frame(height: 40)
                 logo
                 Spacer()
-                runnerFigure
-                Spacer()
+                if !hasKeyArt {
+                    runnerFigure
+                    Spacer()
+                }
                 tipText
                 loadingBar
                     .padding(.horizontal, 24)
@@ -54,6 +65,33 @@ struct LoadingView: View {
     }
 
     // MARK: Background
+
+    /// Full-bleed generated key art with subtle scrims so the logo and
+    /// loading bar stay readable on top of the busy illustration.
+    private var keyArtBackground: some View {
+        Color(red: 0.16, green: 0.3, blue: 0.5)
+            .overlay {
+                Image("boy_hoverboard_chase")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .allowsHitTesting(false)
+            }
+            .overlay {
+                LinearGradient(
+                    stops: [
+                        .init(color: .black.opacity(0.25), location: 0),
+                        .init(color: .clear, location: 0.22),
+                        .init(color: .clear, location: 0.72),
+                        .init(color: .black.opacity(0.45), location: 1),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .allowsHitTesting(false)
+            }
+            .clipped()
+            .ignoresSafeArea()
+    }
 
     private var background: some View {
         ZStack {
