@@ -21,6 +21,7 @@ final class GameState {
     // Persistent values
     var bestScore: Int
     var totalCoins: Int
+    var selectedCharacterID: String
 
     // Last run results
     var lastRunScore = 0
@@ -33,6 +34,13 @@ final class GameState {
     init() {
         bestScore = store.bestScore
         totalCoins = store.totalCoins
+        selectedCharacterID = store.selectedCharacterID
+    }
+
+    /// Persists the chosen playable character between launches.
+    func selectCharacter(_ id: String) {
+        selectedCharacterID = id
+        store.selectedCharacterID = id
     }
 
     func beginRun() {

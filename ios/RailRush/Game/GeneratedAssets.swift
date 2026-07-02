@@ -1,5 +1,20 @@
 import Foundation
 
+/// Bundled asset set for one playable runner character.
+struct RunnerCharacterAssets: Identifiable, Equatable {
+    let id: String
+    let displayName: String
+    let model: String
+    let frontAxis: GeneratedModelAxis?
+    let upAxis: GeneratedModelAxis
+    let run: String?
+    let jump: String?
+    let slide: String?
+    let fly: String?
+    let knockDown: String?
+    let idle: String?
+}
+
 /// Central registry of generated asset resource names and orientation metadata.
 /// Resource names are finalized from the asset generation output — if a model or
 /// animation is missing from the bundle the game falls back to procedural geometry.
@@ -101,4 +116,44 @@ enum GeneratedAssets {
 
     static let inspectorRun: String? = "grumpy_security_officer-anim-run-fast-3-inplace"
     static let inspectorIdle: String? = "grumpy_security_officer-anim-idle"
+
+    // MARK: Playable character roster
+
+    /// Original male runner, assembled from the legacy runner constants.
+    static let boyCharacter = RunnerCharacterAssets(
+        id: "boy",
+        displayName: "Max",
+        model: runnerModel,
+        frontAxis: runnerFrontAxis,
+        upAxis: runnerUpAxis,
+        run: runnerRun,
+        jump: runnerJump,
+        slide: runnerSlide,
+        fly: runnerFly,
+        knockDown: runnerKnockDown,
+        idle: runnerIdle
+    )
+
+    /// Female runner (generated model, bundled under distinct girl file names
+    /// to avoid colliding with the boy's resources). Falls back to procedural
+    /// geometry if the files are ever missing.
+    static let girlCharacter = RunnerCharacterAssets(
+        id: "girl",
+        displayName: "Ruby",
+        model: "cartoon_girl_runner",
+        frontAxis: .positiveZ,
+        upAxis: .positiveY,
+        run: "cartoon_girl_runner-anim-runfast",
+        jump: "cartoon_girl_runner-anim-jump-run",
+        slide: "cartoon_girl_runner-anim-slide-light",
+        fly: "cartoon_girl_runner-anim-bar-hang-idle",
+        knockDown: "cartoon_girl_runner-anim-knock-down",
+        idle: "cartoon_girl_runner-anim-idle"
+    )
+
+    static let characters: [RunnerCharacterAssets] = [boyCharacter, girlCharacter]
+
+    static func character(withID id: String) -> RunnerCharacterAssets {
+        characters.first { $0.id == id } ?? boyCharacter
+    }
 }

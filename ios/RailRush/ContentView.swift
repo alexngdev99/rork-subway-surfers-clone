@@ -17,9 +17,11 @@ struct ContentView: View {
                 case .loading:
                     EmptyView()
                 case .home:
-                    HomeView(state: gameState) {
-                        world.startRun()
-                    }
+                    HomeView(
+                        state: gameState,
+                        onSelectCharacter: { world.selectCharacter($0) },
+                        onRun: { world.startRun() }
+                    )
                     .transition(.opacity)
                 case .running:
                     HUDView(state: gameState) {

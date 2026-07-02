@@ -90,6 +90,10 @@ final class RunnerWorld {
     // Actors
     private var playerContainer = Entity()
     private var runnerAnimator: GeneratedModelAnimationPlayer?
+    /// Every playable character stays loaded so switching on the home screen is instant.
+    private var characterContainers: [String: Entity] = [:]
+    private var characterAnimators: [String: GeneratedModelAnimationPlayer] = [:]
+    private var activeCharacter: RunnerCharacterAssets = GeneratedAssets.boyCharacter
     private var inspectorContainer = Entity()
     private var inspectorAnimator: GeneratedModelAnimationPlayer?
     private var dogContainer = Entity()
@@ -179,7 +183,7 @@ final class RunnerWorld {
         state.loadingProgress = 0.97
 
         // Idle on the home screen
-        runnerAnimator?.setLoop(GeneratedAssets.runnerIdle)
+        runnerAnimator?.setLoop(activeCharacter.idle)
         inspectorContainer.isEnabled = false
         dogContainer.isEnabled = false
         state.loadingProgress = 1
@@ -217,32 +221,46 @@ final class RunnerWorld {
     }
 
     private func buildActors() async {
-        playerContainer = await makeGeneratedModelContainer(
-            resourceName: GeneratedAssets.runnerModel,
-            targetHeight: 1.8,
-            localFrontAxis: GeneratedAssets.runnerFrontAxis,
-            localUpAxis: GeneratedAssets.runnerUpAxis,
-            desiredWorldForward: [0, 0, -1],
-            worldPosition: [0, 0, 0],
-            fallback: { TrackBuilder.makeFallbackHumanoid(color: UIColor(red: 0.0, green: 0.72, blue: 0.68, alpha: 1)) }
-        )
-        actors.addChild(playerContainer)
-        state.loadingProgress = 0.44
+        // Load the full playable roster; only the selected character is visible.
+        let selectedID = state.selectedCharacterID
+        for (index, character) in GeneratedAssets.characters.enumerated() {
+            let fallbackColor = character.id == "girl"
+                ? UIColor(red: 0.95, green: 0.35, blue: 0.55, alpha: 1)
+                : UIColor(red: 0.0, green: 0.72, blue: 0.68, alpha: 1)
+            let container = await makeGeneratedModelContainer(
+                resourceName: character.model,
+                targetHeight: 1.8,
+                localFrontAxis: character.frontAxis,
+                localUpAxis: character.upAxis,
+                desiredWorldForward: [0, 0, -1],
+                worldPosition: [0, 0, 0],
+                fallback: { TrackBuilder.makeFallbackHumanoid(color: fallbackColor) }
+            )
+            container.isEnabled = character.id == selectedID
+            actors.addChild(container)
 
-        let runnerPlayer = GeneratedModelAnimationPlayer(container: playerContainer)
-        await runnerPlayer.preload(
-            [
-                GeneratedAssets.runnerRun,
-                GeneratedAssets.runnerJump,
-                GeneratedAssets.runnerSlide,
-                GeneratedAssets.runnerKnockDown,
-                GeneratedAssets.runnerIdle,
-                GeneratedAssets.runnerFly,
-            ].compactMap { $0 }
-        )
-        runnerAnimator = runnerPlayer
+            let animator = GeneratedModelAnimationPlayer(container: container)
+            await animator.preload(
+                [
+                    character.run,
+                    character.jump,
+                    character.slide,
+                    character.knockDown,
+                    character.idle,
+                    character.fly,
+                ].compactMap { $0 }
+            )
+            characterContainers[character.id] = container
+            characterAnimators[character.id] = animator
+            state.loadingProgress = 0.4 + 0.08 * Double(index + 1)
+        }
+
+        activeCharacter = GeneratedAssets.character(withID: selectedID)
+        playerContainer = characterContainers[activeCharacter.id] ?? Entity()
+        runnerAnimator = characterAnimators[activeCharacter.id]
+
         await buildJetpackProp()
-        state.loadingProgress = 0.6
+        state.loadingProgress = 0.62
 
         inspectorContainer = await makeGeneratedModelContainer(
             resourceName: GeneratedAssets.inspectorModel,
@@ -414,12 +432,12 @@ final class RunnerWorld {
         jetpackVisualsActive = active
         jetpackProp?.isEnabled = active
         if active {
-            if let fly = GeneratedAssets.runnerFly {
+            if let fly = activeCharacter.fly {
                 runnerAnimator?.setLoop(fly)
             }
         } else {
             setJetpackThrust(active: false)
-            runnerAnimator?.setLoop(GeneratedAssets.runnerRun)
+            runnerAnimator?.setLoop(activeCharacter.run)
         }
     }
 
@@ -563,6 +581,38 @@ final class RunnerWorld {
         node.boundsCenterY = bounds.center.y
     }
 
+    // MARK: - Character selection
+
+    /// Swaps the visible playable character (home screen only) and persists the choice.
+    func selectCharacter(_ id: String) {
+        guard state.phase == .home, id != activeCharacter.id,
+              let container = characterContainers[id] else {
+            state.selectCharacter(id)
+            return
+        }
+
+        runnerAnimator?.stop()
+        playerContainer.isEnabled = false
+
+        activeCharacter = GeneratedAssets.character(withID: id)
+        state.selectCharacter(id)
+        playerContainer = container
+        runnerAnimator = characterAnimators[id]
+        playerContainer.position = [0, 0, 0]
+        playerContainer.orientation = simd_quatf(angle: 0, axis: [0, 1, 0])
+        playerContainer.isEnabled = true
+
+        // The wearable jetpack prop follows the active character.
+        if let prop = jetpackProp {
+            prop.removeFromParent()
+            prop.isEnabled = false
+            playerContainer.addChild(prop)
+        }
+
+        runnerAnimator?.setLoop(activeCharacter.idle)
+        haptics.laneChange()
+    }
+
     // MARK: - Run lifecycle
 
     func startRun() {
@@ -616,7 +666,7 @@ final class RunnerWorld {
         dogContainer.position = [0.8, 0, 5.8]
 
         state.beginRun()
-        runnerAnimator?.setLoop(GeneratedAssets.runnerRun)
+        runnerAnimator?.setLoop(activeCharacter.run)
         inspectorAnimator?.setLoop(GeneratedAssets.inspectorRun)
         audio.startMusic()
     }
@@ -627,7 +677,7 @@ final class RunnerWorld {
         jetpackVisualsActive = false
         jetpackProp?.isEnabled = false
         setJetpackThrust(active: false)
-        runnerAnimator?.setLoop(GeneratedAssets.runnerIdle)
+        runnerAnimator?.setLoop(activeCharacter.idle)
         inspectorAnimator?.setLoop(nil)
         inspectorContainer.isEnabled = false
         dogContainer.isEnabled = false
@@ -668,7 +718,7 @@ final class RunnerWorld {
         verticalVelocity = WorldConfig.jumpVelocity
         haptics.jump()
         audio.play(.jump)
-        runnerAnimator?.playOnce(GeneratedAssets.runnerJump, restoreAfter: .milliseconds(750))
+        runnerAnimator?.playOnce(activeCharacter.jump, restoreAfter: .milliseconds(750))
     }
 
     private func slide() {
@@ -681,7 +731,7 @@ final class RunnerWorld {
         isSliding = true
         slideTimer = WorldConfig.slideDuration
         haptics.laneChange()
-        runnerAnimator?.playOnce(GeneratedAssets.runnerSlide, restoreAfter: .milliseconds(Int(WorldConfig.slideDuration * 1000)))
+        runnerAnimator?.playOnce(activeCharacter.slide, restoreAfter: .milliseconds(Int(WorldConfig.slideDuration * 1000)))
     }
 
     // MARK: - Per-frame simulation
@@ -794,7 +844,7 @@ final class RunnerWorld {
     /// (takeoff → landing maps to 0 → 1), so the rotation completes exactly a
     /// full turn on touchdown — even when a swipe-down fast-fall shortens the arc.
     private func updateJumpFlip() {
-        guard GeneratedAssets.runnerJump == nil else { return }
+        guard activeCharacter.jump == nil else { return }
         guard let runtime = playerContainer.findEntity(named: "generated_model_runtime") else { return }
         if isJumping, !jetpackActive {
             let span = 2 * WorldConfig.jumpVelocity
@@ -1225,7 +1275,7 @@ final class RunnerWorld {
         audio.play(.crash)
         audio.stopMusic()
         runnerAnimator?.stop()
-        runnerAnimator?.playOnce(GeneratedAssets.runnerKnockDown, restoreAfter: .seconds(30))
+        runnerAnimator?.playOnce(activeCharacter.knockDown, restoreAfter: .seconds(30))
         inspectorAnimator?.setLoop(GeneratedAssets.inspectorIdle)
 
         if reason == .caughtByInspector {

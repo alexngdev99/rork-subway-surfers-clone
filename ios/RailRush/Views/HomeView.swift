@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Home hub overlay: title, stats, and the big RUN button.
+/// Home hub overlay: title, stats, character picker, and the big RUN button.
 struct HomeView: View {
     let state: GameState
+    let onSelectCharacter: (String) -> Void
     let onRun: () -> Void
 
     @State private var pulse = false
@@ -54,6 +55,11 @@ struct HomeView: View {
             Spacer()
 
             VStack(spacing: 14) {
+                CharacterPicker(
+                    selectedID: state.selectedCharacterID,
+                    onSelect: onSelectCharacter
+                )
+
                 HStack(spacing: 18) {
                     SwipeHint(symbol: "arrow.left.arrow.right", text: "Lanes")
                     SwipeHint(symbol: "arrow.up", text: "Jump")
@@ -91,6 +97,78 @@ struct HomeView: View {
                 pulse = true
             }
         }
+    }
+}
+
+/// Horizontal roster of playable characters; the live 3D character on the
+/// home scene swaps instantly when a card is tapped.
+private struct CharacterPicker: View {
+    let selectedID: String
+    let onSelect: (String) -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ForEach(GeneratedAssets.characters) { character in
+                CharacterCard(
+                    character: character,
+                    isSelected: character.id == selectedID,
+                    onTap: { onSelect(character.id) }
+                )
+            }
+        }
+    }
+}
+
+private struct CharacterCard: View {
+    let character: RunnerCharacterAssets
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    private var accent: Color {
+        character.id == "girl"
+            ? Color(red: 0.98, green: 0.4, blue: 0.6)
+            : Color(red: 0.1, green: 0.78, blue: 0.74)
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 6) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [accent, accent.opacity(0.65)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .frame(width: 46, height: 46)
+                    Image(systemName: "figure.run")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                Text(character.displayName)
+                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 88, height: 86)
+            .background(.black.opacity(isSelected ? 0.5 : 0.3), in: RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(isSelected ? accent : .white.opacity(0.15), lineWidth: isSelected ? 2.5 : 1)
+            )
+            .overlay(alignment: .topTrailing) {
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white, accent)
+                        .padding(6)
+                }
+            }
+            .scaleEffect(isSelected ? 1.04 : 1.0)
+            .animation(.spring(duration: 0.3), value: isSelected)
+        }
+        .buttonStyle(PressableButtonStyle())
     }
 }
 
