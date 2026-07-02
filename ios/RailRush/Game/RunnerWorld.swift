@@ -464,6 +464,12 @@ final class RunnerWorld {
         let dt = min(deltaTime, 1 / 20)
         coinSpinAngle += dt * 4
 
+        // Non-inplace clips (slide/jump) translate the skeleton inside the
+        // animation; cancel that drift every frame so the model never snaps
+        // back when the run loop resumes.
+        runnerAnimator?.cancelHorizontalRootMotion()
+        inspectorAnimator?.cancelHorizontalRootMotion()
+
         switch state.phase {
         case .loading:
             break
