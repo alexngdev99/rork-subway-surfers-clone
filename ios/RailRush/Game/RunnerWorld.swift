@@ -11,8 +11,16 @@ enum WorldConfig {
     static let spawnZ: Float = -75
     static let despawnZ: Float = 14
     static let baseSpeed: Float = 9.5
-    static let maxSpeed: Float = 24
-    static let speedRamp: Float = 0.2
+    static let maxSpeed: Float = 26
+    static let speedRamp: Float = 0.08
+    /// Score-driven speed surge: extra m/s per sqrt(score) point. Square-root
+    /// scaling keeps early runs snappy while high scores approach maxSpeed
+    /// smoothly instead of exploding.
+    static let scoreSpeedFactor: Float = 0.28
+    /// Extra closing speed added to oncoming trains per score point.
+    static let trainSpeedPerScore: Float = 0.004
+    /// Cap on the score-based train speed bonus (m/s).
+    static let trainSpeedScoreBonusMax: Float = 8
     static let gravity: Float = -26
     static let jumpVelocity: Float = 8.8
     static let slideDuration: Float = 0.85
@@ -801,8 +809,13 @@ final class RunnerWorld {
     private func updateRun(dt: Float) {
         runTime += dt
 
-        // Speed ramp with stumble penalty
-        var speed = min(WorldConfig.maxSpeed, WorldConfig.baseSpeed + WorldConfig.speedRamp * runTime)
+        // Speed ramp: gentle time-based warm-up plus a score-driven surge —
+        // the higher the score, the faster the runner sprints.
+        let scoreBoost = WorldConfig.scoreSpeedFactor * sqrt(Float(max(0, state.score)))
+        var speed = min(
+            WorldConfig.maxSpeed,
+            WorldConfig.baseSpeed + WorldConfig.speedRamp * runTime + scoreBoost
+        )
         if speedPenaltyTimer > 0 {
             speedPenaltyTimer -= dt
             speed *= 0.62
@@ -824,9 +837,11 @@ final class RunnerWorld {
     }
 
     private func updatePlayer(dt: Float) {
-        // Lane lerp
+        // Lane lerp — responsiveness scales with world speed so lane changes
+        // stay feasible as score-driven speed climbs.
         let targetX = WorldConfig.laneXs[laneIndex]
-        playerX += (targetX - playerX) * min(1, dt * 14)
+        let laneLerpRate = 12 + worldSpeed * 0.35
+        playerX += (targetX - playerX) * min(1, dt * laneLerpRate)
 
         if jetpackActive {
             // Cruise at flight altitude with a gentle thruster hover bob.
@@ -961,11 +976,21 @@ final class RunnerWorld {
         let trainLanes = Array(lanes.prefix(trainLaneCount))
         lanes.removeFirst(trainLaneCount)
 
+        // Score-based train aggression: oncoming trains appear earlier and
+        // close in faster as the score climbs.
+        let trainScoreBonus = min(
+            WorldConfig.trainSpeedScoreBonusMax,
+            Float(max(0, state.score)) * WorldConfig.trainSpeedPerScore
+        )
+        let movingUnlocked = runTime > 25 || state.score > 300
+        // Moving-train odds ramp from 50% up to 75% at high scores.
+        let movingChance = 0.5 + min(0.25, Float(max(0, state.score)) / 8000)
+
         for lane in trainLanes {
             // Random inactive node so the mixed train styles appear evenly.
             guard let node = trainPool.filter({ !$0.isActive }).randomElement() else { continue }
-            let moving = runTime > 25 && Bool.random()
-            node.extraSpeed = moving ? Float.random(in: 4...7) : 0
+            let moving = movingUnlocked && Float.random(in: 0...1) < movingChance
+            node.extraSpeed = moving ? Float.random(in: 4...7) + trainScoreBonus : 0
             node.entity.position = [WorldConfig.laneXs[lane], 0, WorldConfig.spawnZ - node.halfExtents.z]
             node.isActive = true
             node.entity.isEnabled = true
