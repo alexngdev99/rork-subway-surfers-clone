@@ -18,6 +18,10 @@ enum TrackBuilder {
         var trackTile: Entity?
         /// Z-length of the normalized track tile, for cloning along a segment.
         var trackTileLength: Float = 8
+        /// Full-width dirt ground slab tile cloned along the track bed.
+        var groundTile: Entity?
+        /// Z-length of the normalized ground tile, for cloning along a segment.
+        var groundTileLength: Float = 10
     }
 
     static var decorPrototypes = DecorPrototypes()
@@ -67,6 +71,10 @@ enum TrackBuilder {
         if let name = GeneratedAssets.trackTileModel,
            let visual = try? await Entity(named: name) {
             loadTrackTilePrototype(visual)
+        }
+        if let name = GeneratedAssets.groundTileModel,
+           let visual = try? await Entity(named: name) {
+            loadGroundTilePrototype(visual)
         }
         if let visual = try? await Entity(named: GeneratedAssets.treeModel) {
             let container = Entity()
@@ -120,6 +128,32 @@ enum TrackBuilder {
         decorPrototypes.trackTileLength = max(bounds.extents.z, 2)
     }
 
+    /// Normalizes the generated dirt ground slab: width spans the full track
+    /// bed, length runs along Z, and the dirt top surface sits at ground level
+    /// (just below rails/sleepers so nothing z-fights).
+    private static func loadGroundTilePrototype(_ visual: Entity) {
+        let container = Entity()
+        container.addChild(visual)
+
+        // No persisted front metadata — make the LONG side run down the track (Z).
+        var bounds = visual.visualBounds(relativeTo: container)
+        if bounds.extents.x > bounds.extents.z {
+            visual.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0]) * visual.orientation
+            bounds = visual.visualBounds(relativeTo: container)
+        }
+
+        // Scale by WIDTH so one tile covers the whole 9.6 m track bed.
+        let targetWidth: Float = 9.6
+        visual.scale *= SIMD3<Float>(repeating: targetWidth / max(bounds.extents.x, 0.001))
+
+        bounds = visual.visualBounds(relativeTo: container)
+        // Center X/Z; sink so the dirt top sits ~2 cm below rail bases.
+        visual.position -= SIMD3<Float>(bounds.center.x, bounds.max.y + 0.02, bounds.center.z)
+
+        decorPrototypes.groundTile = container
+        decorPrototypes.groundTileLength = max(bounds.extents.z, 3)
+    }
+
     private static let buildingPalette: [UIColor] = [
         UIColor(red: 0.95, green: 0.55, blue: 0.25, alpha: 1),
         UIColor(red: 0.36, green: 0.62, blue: 0.72, alpha: 1),
@@ -133,13 +167,32 @@ enum TrackBuilder {
     static func makeSegment() -> Entity {
         let segment = Entity()
 
-        // Ballast bed
-        let ballast = ModelEntity(
-            mesh: .generateBox(size: [9.6, 0.2, segmentLength]),
-            materials: [SimpleMaterial(color: UIColor(red: 0.26, green: 0.24, blue: 0.28, alpha: 1), roughness: 0.9, isMetallic: false)]
-        )
-        ballast.position = [0, -0.1, 0]
-        segment.addChild(ballast)
+        if let ground = decorPrototypes.groundTile {
+            // Generated dirt ground: clone the slab down the segment, plus a
+            // thin dark base box underneath to hide any seams.
+            let base = ModelEntity(
+                mesh: .generateBox(size: [9.6, 0.2, segmentLength]),
+                materials: [SimpleMaterial(color: UIColor(red: 0.34, green: 0.24, blue: 0.17, alpha: 1), roughness: 0.95, isMetallic: false)]
+            )
+            base.position = [0, -0.14, 0]
+            segment.addChild(base)
+
+            let step = decorPrototypes.groundTileLength * 0.98
+            let count = Int((segmentLength / step).rounded(.up))
+            for i in 0..<count {
+                let clone = ground.clone(recursive: true)
+                clone.position = [0, 0, -segmentLength / 2 + step * (Float(i) + 0.5)]
+                segment.addChild(clone)
+            }
+        } else {
+            // Procedural fallback ballast bed.
+            let ballast = ModelEntity(
+                mesh: .generateBox(size: [9.6, 0.2, segmentLength]),
+                materials: [SimpleMaterial(color: UIColor(red: 0.26, green: 0.24, blue: 0.28, alpha: 1), roughness: 0.9, isMetallic: false)]
+            )
+            ballast.position = [0, -0.1, 0]
+            segment.addChild(ballast)
+        }
 
         if let tile = decorPrototypes.trackTile {
             // Generated track surface: clone the tile down each lane.
