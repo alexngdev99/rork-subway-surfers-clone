@@ -32,8 +32,9 @@ enum GeneratedAssets {
     static let treeModel = "city_tree"
     static let lampModel = "railway_signal_lamp"
     /// Generated railway track surface tile (rails + sleepers + ballast).
-    /// nil resource name → segment keeps the procedural rails fallback.
-    static let trackTileModel: String? = "railway_track_section"
+    /// Regenerated as a clean low-poly tile — the first version had corrupted
+    /// spiky rail geometry. nil resource name → procedural rails fallback.
+    static let trackTileModel: String? = "railway_track_clean"
     /// Additional building styles arranged into the front street row.
     static let shopBuildingModel: String? = "brick_shop_building"
     static let apartmentBuildingModel: String? = "city_apartment_building"
