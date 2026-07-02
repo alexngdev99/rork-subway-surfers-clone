@@ -1,0 +1,34 @@
+# React Native / Expo artifacts (should not exist in Swift projects)
+node_modules/
+.expo/
+.bundle/
+android/
+ios/
+babel.config.js
+metro.config.js
+package.json
+package-lock.json
+tsconfig.json
+app.json
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Rork
+.rork/
+.env
+Config.swift
