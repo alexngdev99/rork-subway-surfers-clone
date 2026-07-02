@@ -64,8 +64,11 @@ enum GeneratedAssets {
 
     /// Floating pickup models on the track. nil resource name → procedural orb
     /// fallback. The jetpack pickup reuses `jetpackModel`.
-    static let magnetPickupModel: String? = nil
-    static let doubleScorePickupModel: String? = nil
+    /// Magnet: directionless prop (no intrinsic front) — no yaw correction.
+    /// 2X badge: front face (+Z) shows the "2X" text; the pickup Y-spin keeps
+    /// it readable from every side so no static yaw correction is applied.
+    static let magnetPickupModel: String? = "magnet_powerup"
+    static let doubleScorePickupModel: String? = "double_score_badge"
 
     // MARK: Runner animation resource names (nil when the clip was not generated)
 
