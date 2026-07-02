@@ -31,10 +31,20 @@ enum GeneratedAssets {
     static let buildingModel = "graffiti_city_building"
     static let treeModel = "city_tree"
     static let lampModel = "railway_signal_lamp"
+    /// Generated railway track surface tile (rails + sleepers + ballast).
+    /// nil resource name → segment keeps the procedural rails fallback.
+    static let trackTileModel: String? = "railway_track_section"
+    /// Additional building styles arranged into the front street row.
+    static let shopBuildingModel: String? = "brick_shop_building"
+    static let apartmentBuildingModel: String? = "city_apartment_building"
 
     // Decor orientation metadata (defaults until generation output is finalized)
     static let buildingFrontAxis: GeneratedModelAxis? = .positiveZ
     static let buildingUpAxis: GeneratedModelAxis = .positiveY
+    static let shopBuildingFrontAxis: GeneratedModelAxis? = .positiveZ
+    static let shopBuildingUpAxis: GeneratedModelAxis = .positiveY
+    static let apartmentBuildingFrontAxis: GeneratedModelAxis? = .positiveZ
+    static let apartmentBuildingUpAxis: GeneratedModelAxis = .positiveY
     static let treeFrontAxis: GeneratedModelAxis? = nil
     static let treeUpAxis: GeneratedModelAxis = .positiveY
     static let lampFrontAxis: GeneratedModelAxis? = .positiveZ

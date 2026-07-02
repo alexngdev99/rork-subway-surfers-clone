@@ -10,9 +10,14 @@ enum TrackBuilder {
     /// Normalized prototype containers for generated environment decor.
     /// Loaded once at scene build; clones are placed on each track segment.
     struct DecorPrototypes {
-        var building: Entity?
+        /// Street-row building styles, cycled across slots for variety.
+        var buildings: [Entity] = []
         var tree: Entity?
         var lamp: Entity?
+        /// One lane-width track surface tile (rails + sleepers + ballast).
+        var trackTile: Entity?
+        /// Z-length of the normalized track tile, for cloning along a segment.
+        var trackTileLength: Float = 8
     }
 
     static var decorPrototypes = DecorPrototypes()
@@ -31,7 +36,37 @@ enum TrackBuilder {
                 localUpAxis: GeneratedAssets.buildingUpAxis,
                 desiredWorldForward: [0, 0, 1]
             )
-            decorPrototypes.building = container
+            decorPrototypes.buildings.append(container)
+        }
+        if let name = GeneratedAssets.shopBuildingModel,
+           let visual = try? await Entity(named: name) {
+            let container = Entity()
+            attachGeneratedModelVisual(
+                visual,
+                to: container,
+                targetHeight: 6.8,
+                localFrontAxis: GeneratedAssets.shopBuildingFrontAxis,
+                localUpAxis: GeneratedAssets.shopBuildingUpAxis,
+                desiredWorldForward: [0, 0, 1]
+            )
+            decorPrototypes.buildings.append(container)
+        }
+        if let name = GeneratedAssets.apartmentBuildingModel,
+           let visual = try? await Entity(named: name) {
+            let container = Entity()
+            attachGeneratedModelVisual(
+                visual,
+                to: container,
+                targetHeight: 10.5,
+                localFrontAxis: GeneratedAssets.apartmentBuildingFrontAxis,
+                localUpAxis: GeneratedAssets.apartmentBuildingUpAxis,
+                desiredWorldForward: [0, 0, 1]
+            )
+            decorPrototypes.buildings.append(container)
+        }
+        if let name = GeneratedAssets.trackTileModel,
+           let visual = try? await Entity(named: name) {
+            loadTrackTilePrototype(visual)
         }
         if let visual = try? await Entity(named: GeneratedAssets.treeModel) {
             let container = Entity()
@@ -58,6 +93,33 @@ enum TrackBuilder {
         }
     }
 
+    /// Normalizes the generated track tile: length runs along Z, width matches
+    /// one lane's track bed, and the rail top surface sits just above ground.
+    private static func loadTrackTilePrototype(_ visual: Entity) {
+        let container = Entity()
+        container.addChild(visual)
+
+        // The tile has no persisted front metadata — infer the long axis from
+        // real bounds so rails always run down the track (Z axis).
+        var bounds = visual.visualBounds(relativeTo: container)
+        if bounds.extents.x > bounds.extents.z {
+            visual.orientation = simd_quatf(angle: .pi / 2, axis: [0, 1, 0]) * visual.orientation
+            bounds = visual.visualBounds(relativeTo: container)
+        }
+
+        // Scale by WIDTH so the rail gauge visually matches one 2 m lane.
+        let targetWidth: Float = 2.5
+        visual.scale *= SIMD3<Float>(repeating: targetWidth / max(bounds.extents.x, 0.001))
+
+        bounds = visual.visualBounds(relativeTo: container)
+        // Center X/Z; sink the tile so the rail tops sit ~0.16 m above ground
+        // (the ballast body hides inside the procedural bed below).
+        visual.position -= SIMD3<Float>(bounds.center.x, bounds.max.y - 0.16, bounds.center.z)
+
+        decorPrototypes.trackTile = container
+        decorPrototypes.trackTileLength = max(bounds.extents.z, 2)
+    }
+
     private static let buildingPalette: [UIColor] = [
         UIColor(red: 0.95, green: 0.55, blue: 0.25, alpha: 1),
         UIColor(red: 0.36, green: 0.62, blue: 0.72, alpha: 1),
@@ -79,30 +141,42 @@ enum TrackBuilder {
         ballast.position = [0, -0.1, 0]
         segment.addChild(ballast)
 
-        // Rails: two per lane
-        let railMaterial = SimpleMaterial(color: UIColor(white: 0.75, alpha: 1), roughness: 0.35, isMetallic: true)
-        for laneX in laneXs {
-            for offset in [-0.62, 0.62] {
-                let rail = ModelEntity(
-                    mesh: .generateBox(size: [0.09, 0.12, segmentLength]),
-                    materials: [railMaterial]
-                )
-                rail.position = [laneX + Float(offset), 0.06, 0]
-                segment.addChild(rail)
+        if let tile = decorPrototypes.trackTile {
+            // Generated track surface: clone the tile down each lane.
+            let step = decorPrototypes.trackTileLength * 0.99
+            let count = Int((segmentLength / step).rounded(.up))
+            for laneX in laneXs {
+                for i in 0..<count {
+                    let clone = tile.clone(recursive: true)
+                    clone.position = [laneX, 0, -segmentLength / 2 + step * (Float(i) + 0.5)]
+                    segment.addChild(clone)
+                }
             }
-        }
+        } else {
+            // Procedural fallback: rails + sleepers.
+            let railMaterial = SimpleMaterial(color: UIColor(white: 0.75, alpha: 1), roughness: 0.35, isMetallic: true)
+            for laneX in laneXs {
+                for offset in [-0.62, 0.62] {
+                    let rail = ModelEntity(
+                        mesh: .generateBox(size: [0.09, 0.12, segmentLength]),
+                        materials: [railMaterial]
+                    )
+                    rail.position = [laneX + Float(offset), 0.06, 0]
+                    segment.addChild(rail)
+                }
+            }
 
-        // Sleepers spanning all lanes
-        let sleeperMaterial = SimpleMaterial(color: UIColor(red: 0.35, green: 0.27, blue: 0.2, alpha: 1), roughness: 0.85, isMetallic: false)
-        let sleeperCount = 16
-        let spacing = segmentLength / Float(sleeperCount)
-        for i in 0..<sleeperCount {
-            let sleeper = ModelEntity(
-                mesh: .generateBox(size: [8.6, 0.06, 0.5]),
-                materials: [sleeperMaterial]
-            )
-            sleeper.position = [0, 0.01, -segmentLength / 2 + spacing * (Float(i) + 0.5)]
-            segment.addChild(sleeper)
+            let sleeperMaterial = SimpleMaterial(color: UIColor(red: 0.35, green: 0.27, blue: 0.2, alpha: 1), roughness: 0.85, isMetallic: false)
+            let sleeperCount = 16
+            let spacing = segmentLength / Float(sleeperCount)
+            for i in 0..<sleeperCount {
+                let sleeper = ModelEntity(
+                    mesh: .generateBox(size: [8.6, 0.06, 0.5]),
+                    materials: [sleeperMaterial]
+                )
+                sleeper.position = [0, 0.01, -segmentLength / 2 + spacing * (Float(i) + 0.5)]
+                segment.addChild(sleeper)
+            }
         }
 
         // Side containment walls with graffiti-toned stripes
@@ -142,14 +216,20 @@ enum TrackBuilder {
     /// Each clone stores its side in the sign of its X position; randomizeDecor
     /// keeps the sign and re-rolls the rest.
     private static func populateGeneratedDecor(in container: Entity) {
-        for side in [Float(-1), 1] {
-            for index in 0..<2 {
-                if let building = decorPrototypes.building {
-                    let clone = building.clone(recursive: true)
-                    clone.name = "gen_building"
-                    clone.position = [side * 10, 0, Float(index) * 12 - 8]
+        let buildings = decorPrototypes.buildings
+        for (sideIndex, side) in [Float(-1), 1].enumerated() {
+            // Street row: one building per slot, styles cycled so neighbors
+            // and the two sides never mirror each other.
+            if !buildings.isEmpty {
+                for slot in 0..<3 {
+                    let style = buildings[(slot + sideIndex * 2) % buildings.count]
+                    let clone = style.clone(recursive: true)
+                    clone.name = "gen_building_\(slot)"
+                    clone.position = [side * 10, 0, 0]
                     container.addChild(clone)
                 }
+            }
+            for index in 0..<2 {
                 if let tree = decorPrototypes.tree {
                     let clone = tree.clone(recursive: true)
                     clone.name = "gen_tree"
@@ -174,7 +254,7 @@ enum TrackBuilder {
 
         // Procedural filler buildings sit BEHIND the generated front row when
         // generated models are available; otherwise they stay close as before.
-        let hasGeneratedRow = decorPrototypes.building != nil
+        let hasGeneratedRow = !decorPrototypes.buildings.isEmpty
         let xRange: ClosedRange<Float> = hasGeneratedRow ? 13.0...16.0 : 9.5...12.0
 
         for side in [Float(-1), 1] {
@@ -211,16 +291,28 @@ enum TrackBuilder {
         guard let container = segment.findEntity(named: "generated_decor") else { return }
         let halfLength = segmentLength / 2
 
+        let slotWidth = segmentLength / 3
+
         for child in container.children {
             let side: Float = child.position.x < 0 ? -1 : 1
             // Prototype visuals are normalized to face +Z; turn toward track center.
             let faceTrack = simd_quatf(from: SIMD3<Float>(0, 0, 1), to: SIMD3<Float>(-side, 0, 0))
 
-            switch child.name {
-            case "gen_building":
-                child.position = [side * Float.random(in: 9.2...11.0), 0, Float.random(in: -halfLength + 5 ... halfLength - 5)]
-                child.scale = SIMD3<Float>(repeating: Float.random(in: 0.85...1.3))
+            if child.name.hasPrefix("gen_building_"),
+               let slot = Int(child.name.dropFirst("gen_building_".count)) {
+                // Even street-row slots with light jitter keep the block tidy.
+                let slotCenter = -halfLength + slotWidth * (Float(slot) + 0.5)
+                child.position = [
+                    side * Float.random(in: 9.3...10.6),
+                    0,
+                    slotCenter + Float.random(in: -2.2...2.2),
+                ]
+                child.scale = SIMD3<Float>(repeating: Float.random(in: 0.92...1.18))
                 child.orientation = faceTrack
+                continue
+            }
+
+            switch child.name {
             case "gen_tree":
                 child.position = [side * Float.random(in: 6.4...7.8), 0, Float.random(in: -halfLength + 2 ... halfLength - 2)]
                 child.scale = SIMD3<Float>(repeating: Float.random(in: 0.8...1.15))
