@@ -797,7 +797,9 @@ final class RunnerWorld {
         var shakeY: Float = 0
         if shakeTimer > 0 {
             shakeTimer -= dt
-            let intensity = shakeTimer * 0.5
+            // Clamp: shakeTimer can dip below zero on the final frame, and a
+            // negative bound would invert the random range and crash.
+            let intensity = max(0, shakeTimer) * 0.5
             shakeX = Float.random(in: -intensity...intensity)
             shakeY = Float.random(in: -intensity...intensity)
         }
@@ -809,7 +811,9 @@ final class RunnerWorld {
     private func updateCrashCamera(dt: Float) {
         if shakeTimer > 0 {
             shakeTimer -= dt
-            let intensity = shakeTimer * 0.6
+            // Clamp: shakeTimer can dip below zero on the final frame, and a
+            // negative bound would invert the random range and crash.
+            let intensity = max(0, shakeTimer) * 0.6
             camera.position = [
                 playerX * 0.55 + Float.random(in: -intensity...intensity),
                 3.3 + Float.random(in: -intensity...intensity),
