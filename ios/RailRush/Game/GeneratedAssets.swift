@@ -4,6 +4,8 @@ import Foundation
 struct RunnerCharacterAssets: Identifiable, Equatable {
     let id: String
     let displayName: String
+    /// Asset-catalog image name for the character's card avatar (nil → SF Symbol fallback).
+    let avatarImageName: String?
     let model: String
     let frontAxis: GeneratedModelAxis?
     let upAxis: GeneratedModelAxis
@@ -141,6 +143,7 @@ enum GeneratedAssets {
     static let boyCharacter = RunnerCharacterAssets(
         id: "boy",
         displayName: "Max",
+        avatarImageName: "boy_spiky_orange_hair_avatar",
         model: runnerModel,
         frontAxis: runnerFrontAxis,
         upAxis: runnerUpAxis,
@@ -158,6 +161,7 @@ enum GeneratedAssets {
     static let girlCharacter = RunnerCharacterAssets(
         id: "girl",
         displayName: "Ruby",
+        avatarImageName: "girl_peace_sign_avatar",
         model: "cartoon_girl_runner",
         frontAxis: .positiveZ,
         upAxis: .positiveY,

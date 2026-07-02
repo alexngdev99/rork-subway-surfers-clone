@@ -125,30 +125,8 @@ struct LoadingView: View {
     // MARK: Logo
 
     private var logo: some View {
-        VStack(spacing: 4) {
-            Text("RAIL")
-                .font(.system(size: 72, weight: .black, design: .rounded))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color(red: 1.0, green: 0.78, blue: 0.15), Color(red: 1.0, green: 0.45, blue: 0.1)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-            Text("RUSH")
-                .font(.system(size: 72, weight: .black, design: .rounded))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color(red: 0.15, green: 0.9, blue: 0.85), Color(red: 0.0, green: 0.62, blue: 0.68)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .padding(.top, -30)
-        }
-        .shadow(color: Color(red: 0.1, green: 0.15, blue: 0.35).opacity(0.55), radius: 0, x: 3, y: 5)
-        .shadow(color: .black.opacity(0.25), radius: 10, y: 6)
-        .rotationEffect(.degrees(-5))
+        GameLogo(size: 72)
+            .shadow(color: .black.opacity(0.25), radius: 10, y: 6)
     }
 
     // MARK: Runner figure
@@ -169,7 +147,8 @@ struct LoadingView: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 18)
             .padding(.vertical, 8)
-            .background(.black.opacity(0.35), in: Capsule())
+            .background(GameTheme.chip, in: Capsule())
+            .overlay(Capsule().strokeBorder(.white.opacity(0.16), lineWidth: 1.5))
             .id(tipIndex)
             .transition(.opacity)
     }
@@ -179,30 +158,35 @@ struct LoadingView: View {
             let clamped = min(1, max(0, progress))
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(red: 0.1, green: 0.16, blue: 0.32).opacity(0.75))
+                    .fill(GameTheme.well.opacity(0.9))
 
                 RoundedRectangle(cornerRadius: 12)
                     .fill(
                         LinearGradient(
-                            colors: [Color(red: 1.0, green: 0.84, blue: 0.2), Color(red: 1.0, green: 0.65, blue: 0.05)],
+                            colors: [Color(red: 1.0, green: 0.85, blue: 0.30), GameTheme.goldDeep],
                             startPoint: .top,
                             endPoint: .bottom
                         )
                     )
+                    .overlay(alignment: .top) {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(.white.opacity(0.28))
+                            .frame(height: 10)
+                            .padding(.horizontal, 6)
+                            .padding(.top, 3)
+                    }
                     .frame(width: max(28, (geo.size.width - 8) * clamped))
                     .padding(4)
                     .animation(.easeOut(duration: 0.35), value: clamped)
 
-                Text("LOADING \(Int(clamped * 100))%")
-                    .font(.system(size: 20, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.6), radius: 0, x: 1, y: 2)
+                OutlinedText(text: "LOADING \(Int(clamped * 100))%", size: 19)
                     .frame(maxWidth: .infinity)
             }
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(.white.opacity(0.5), lineWidth: 2)
+                    .strokeBorder(.white.opacity(0.45), lineWidth: 2)
             )
+            .shadow(color: .black.opacity(0.35), radius: 8, y: 5)
         }
         .frame(height: 54)
     }

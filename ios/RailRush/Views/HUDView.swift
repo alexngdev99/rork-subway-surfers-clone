@@ -10,45 +10,42 @@ struct HUDView: View {
             HStack(alignment: .top) {
                 Button(action: onPause) {
                     Image(systemName: state.isPaused ? "play.fill" : "pause.fill")
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.system(size: 18, weight: .black))
                         .foregroundStyle(.white)
-                        .frame(width: 46, height: 46)
-                        .background(.black.opacity(0.35), in: Circle())
+                        .shadow(color: GameTheme.outline.opacity(0.9), radius: 0, y: 2)
+                        .frame(width: 56)
                 }
+                .buttonStyle(ChunkyButtonStyle(palette: .blue, height: 46, cornerRadius: 14))
 
                 Spacer()
 
-                VStack(alignment: .trailing, spacing: 6) {
-                    Text("\(state.score)")
-                        .font(.system(size: 34, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                        .shadow(color: .black.opacity(0.5), radius: 3, y: 2)
-                        .contentTransition(.numericText())
+                VStack(alignment: .trailing, spacing: 7) {
+                    OutlinedText(text: "\(state.score)", size: 36)
                         .animation(.snappy(duration: 0.2), value: state.score)
 
-                    HStack(spacing: 5) {
-                        Circle()
-                            .fill(Color(red: 1.0, green: 0.82, blue: 0.1))
-                            .frame(width: 16, height: 16)
-                            .overlay(Circle().stroke(.orange, lineWidth: 2))
-                        Text("\(state.coins)")
-                            .font(.system(size: 20, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.white)
-                            .contentTransition(.numericText())
+                    HUDChip {
+                        GoldCoinIcon(size: 18)
+                        OutlinedText(text: "\(state.coins)", size: 18)
                             .animation(.snappy(duration: 0.2), value: state.coins)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(.black.opacity(0.35), in: Capsule())
 
                     if state.multiplier > 1 {
-                        Text("x\(state.multiplier)")
-                            .font(.system(size: 16, weight: .black, design: .rounded))
-                            .foregroundStyle(.black)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 3)
-                            .background(Color(red: 1.0, green: 0.75, blue: 0.1), in: Capsule())
-                            .transition(.scale.combined(with: .opacity))
+                        OutlinedText(
+                            text: "x\(state.multiplier)",
+                            size: 16,
+                            fill: AnyShapeStyle(
+                                LinearGradient(
+                                    colors: [Color(red: 1.0, green: 0.88, blue: 0.35), GameTheme.goldDeep],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                        )
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 3)
+                        .background(GameTheme.chip, in: Capsule())
+                        .overlay(Capsule().strokeBorder(GameTheme.gold.opacity(0.7), lineWidth: 1.5))
+                        .transition(.scale.combined(with: .opacity))
                     }
                 }
             }
@@ -63,13 +60,14 @@ struct HUDView: View {
             if state.inspectorClose {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                    Text("Inspector is right behind you!")
+                        .font(.system(size: 14, weight: .black))
+                        .foregroundStyle(GameTheme.gold)
+                    OutlinedText(text: "Inspector is right behind you!", size: 14)
                 }
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .background(Color(red: 0.85, green: 0.15, blue: 0.15).opacity(0.9), in: Capsule())
+                .background(Color(red: 0.80, green: 0.14, blue: 0.14).opacity(0.92), in: Capsule())
+                .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1.5))
                 .padding(.top, 10)
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
@@ -89,18 +87,19 @@ private struct PowerUpBadge: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: type.symbolName)
-                .font(.system(size: 14, weight: .bold))
-            Text(type.displayName)
-                .font(.system(size: 14, weight: .heavy, design: .rounded))
+                .font(.system(size: 14, weight: .black))
+                .foregroundStyle(.white)
+                .shadow(color: GameTheme.outline.opacity(0.8), radius: 0, y: 1.5)
+            OutlinedText(text: type.displayName, size: 14)
             ProgressView(value: progress)
                 .progressViewStyle(.linear)
                 .tint(.white)
                 .frame(width: 70)
         }
-        .foregroundStyle(.white)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .background(badgeColor.opacity(0.9), in: Capsule())
+        .background(badgeColor.opacity(0.92), in: Capsule())
+        .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1.5))
     }
 
     private var badgeColor: Color {

@@ -72,40 +72,36 @@ private struct PauseOverlay: View {
         ZStack {
             Color.black.opacity(0.55).ignoresSafeArea()
 
-            VStack(spacing: 16) {
-                Text("PAUSED")
-                    .font(.system(size: 34, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
+            ZStack(alignment: .top) {
+                GamePanel {
+                    VStack(spacing: 12) {
+                        Button(action: onResume) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 18, weight: .black))
+                                    .foregroundStyle(.white)
+                                    .shadow(color: GameTheme.outline.opacity(0.9), radius: 0, y: 1.5)
+                                OutlinedText(text: "RESUME", size: 22)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(ChunkyButtonStyle(palette: .green, height: 60, cornerRadius: 18))
 
-                Button(action: onResume) {
-                    Text("RESUME")
-                        .font(.system(size: 22, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 58)
-                        .background(
-                            LinearGradient(
-                                colors: [Color(red: 0.1, green: 0.85, blue: 0.8), Color(red: 0.0, green: 0.6, blue: 0.65)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            ),
-                            in: RoundedRectangle(cornerRadius: 18)
-                        )
+                        Button(action: onHome) {
+                            OutlinedText(text: "QUIT RUN", size: 17)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(ChunkyButtonStyle(palette: .slate, height: 50, cornerRadius: 16))
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 40)
+                    .padding(.bottom, 20)
                 }
-                .buttonStyle(PressableButtonStyle())
 
-                Button(action: onHome) {
-                    Text("Quit Run")
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 48)
-                        .background(.white.opacity(0.15), in: RoundedRectangle(cornerRadius: 16))
-                }
-                .buttonStyle(PressableButtonStyle())
+                BannerTitle(text: "PAUSED")
+                    .offset(y: -24)
             }
-            .padding(26)
-            .frame(maxWidth: 320)
+            .frame(maxWidth: 330)
         }
     }
 }

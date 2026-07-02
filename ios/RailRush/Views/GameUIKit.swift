@@ -1,0 +1,268 @@
+import SwiftUI
+
+/// Shared visual language for every game screen — modern arcade-runner style:
+/// deep blue panels, chunky beveled 3D buttons, and bold white lettering with
+/// a dark navy outline.
+enum GameTheme {
+    static let bgDeep = Color(red: 0.04, green: 0.15, blue: 0.32)
+    /// Dark navy used for text outlines and title banners.
+    static let outline = Color(red: 0.07, green: 0.15, blue: 0.30)
+    static let panelTop = Color(red: 0.26, green: 0.62, blue: 0.92)
+    static let panelBottom = Color(red: 0.12, green: 0.42, blue: 0.78)
+    /// Darker inset area placed inside bright panels (score boxes, stat rows).
+    static let well = Color(red: 0.08, green: 0.26, blue: 0.52)
+    /// Semi-opaque dark chip used over the live 3D scene (HUD counters).
+    static let chip = Color(red: 0.05, green: 0.16, blue: 0.33).opacity(0.82)
+    static let gold = Color(red: 1.0, green: 0.79, blue: 0.24)
+    static let goldDeep = Color(red: 0.94, green: 0.6, blue: 0.07)
+}
+
+/// Face/lip color set for one chunky 3D button.
+struct ChunkyPalette {
+    let top: Color
+    let bottom: Color
+    let lip: Color
+
+    static let green = ChunkyPalette(
+        top: Color(red: 0.62, green: 0.89, blue: 0.25),
+        bottom: Color(red: 0.32, green: 0.70, blue: 0.10),
+        lip: Color(red: 0.20, green: 0.50, blue: 0.05)
+    )
+    static let yellow = ChunkyPalette(
+        top: Color(red: 1.0, green: 0.85, blue: 0.30),
+        bottom: Color(red: 0.96, green: 0.64, blue: 0.10),
+        lip: Color(red: 0.74, green: 0.46, blue: 0.03)
+    )
+    static let blue = ChunkyPalette(
+        top: Color(red: 0.36, green: 0.72, blue: 0.98),
+        bottom: Color(red: 0.15, green: 0.47, blue: 0.88),
+        lip: Color(red: 0.09, green: 0.30, blue: 0.60)
+    )
+    static let slate = ChunkyPalette(
+        top: Color(red: 0.45, green: 0.55, blue: 0.70),
+        bottom: Color(red: 0.29, green: 0.38, blue: 0.53),
+        lip: Color(red: 0.17, green: 0.24, blue: 0.36)
+    )
+}
+
+/// Chunky arcade button: raised gradient face over a darker "lip" that the
+/// face presses down into on touch.
+struct ChunkyButtonStyle: ButtonStyle {
+    var palette: ChunkyPalette
+    var height: CGFloat = 60
+    var cornerRadius: CGFloat = 18
+
+    private let lipDepth: CGFloat = 6
+
+    func makeBody(configuration: Configuration) -> some View {
+        let pressed = configuration.isPressed
+        return ZStack {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(palette.lip)
+                .frame(height: height)
+                .offset(y: lipDepth)
+
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(
+                    LinearGradient(
+                        colors: [palette.top, palette.bottom],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .strokeBorder(.white.opacity(0.30), lineWidth: 1.5)
+                )
+                .frame(height: height)
+                .offset(y: pressed ? lipDepth : 0)
+
+            configuration.label
+                .offset(y: pressed ? lipDepth : 0)
+        }
+        .frame(height: height + lipDepth)
+        .compositingGroup()
+        .shadow(color: .black.opacity(0.35), radius: 6, y: 4)
+        .animation(.easeOut(duration: 0.08), value: pressed)
+    }
+}
+
+/// Heavy rounded text with a dark outline — the signature lettering of the kit.
+struct OutlinedText: View {
+    let text: String
+    var size: CGFloat = 24
+    var fill: AnyShapeStyle = AnyShapeStyle(.white)
+    var outline: Color = GameTheme.outline
+    var outlineWidth: CGFloat = 0
+
+    private var strokeWidth: CGFloat {
+        outlineWidth > 0 ? outlineWidth : max(1.5, size * 0.075)
+    }
+
+    private static let directions: [CGSize] = [
+        CGSize(width: 1, height: 0), CGSize(width: -1, height: 0),
+        CGSize(width: 0, height: 1), CGSize(width: 0, height: -1),
+        CGSize(width: 0.7, height: 0.7), CGSize(width: -0.7, height: 0.7),
+        CGSize(width: 0.7, height: -0.7), CGSize(width: -0.7, height: -0.7),
+    ]
+
+    var body: some View {
+        ZStack {
+            ForEach(0..<Self.directions.count, id: \.self) { i in
+                styledText
+                    .foregroundStyle(outline)
+                    .offset(
+                        x: Self.directions[i].width * strokeWidth,
+                        y: Self.directions[i].height * strokeWidth
+                    )
+            }
+            styledText
+                .foregroundStyle(fill)
+        }
+    }
+
+    private var styledText: Text {
+        Text(text)
+            .font(.system(size: size, weight: .black, design: .rounded))
+    }
+}
+
+/// Bright blue rounded panel used for pause / game-over dialogs.
+struct GamePanel<Content: View>: View {
+    var cornerRadius: CGFloat = 28
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(
+                        LinearGradient(
+                            colors: [GameTheme.panelTop, GameTheme.panelBottom],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .strokeBorder(.white.opacity(0.22), lineWidth: 2)
+                    )
+                    .shadow(color: .black.opacity(0.45), radius: 18, y: 10)
+            )
+    }
+}
+
+/// Dark navy ribbon with big outlined lettering, slightly tilted — sits on
+/// top of a GamePanel like the "SO CLOSE!" banner.
+struct BannerTitle: View {
+    let text: String
+    var size: CGFloat = 30
+
+    var body: some View {
+        OutlinedText(text: text, size: size)
+            .padding(.horizontal, 26)
+            .padding(.vertical, 10)
+            .background(GameTheme.outline, in: RoundedRectangle(cornerRadius: 14))
+            .rotationEffect(.degrees(-2))
+            .shadow(color: .black.opacity(0.4), radius: 8, y: 5)
+    }
+}
+
+/// Dark inset well placed inside a bright panel.
+struct PanelWell<Content: View>: View {
+    var cornerRadius: CGFloat = 16
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(GameTheme.well)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .strokeBorder(.black.opacity(0.18), lineWidth: 1.5)
+                    )
+            )
+    }
+}
+
+/// Semi-opaque dark capsule floated over the 3D scene (HUD counters).
+struct HUDChip<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        HStack(spacing: 6) { content }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(GameTheme.chip, in: Capsule())
+            .overlay(Capsule().strokeBorder(.white.opacity(0.16), lineWidth: 1.5))
+    }
+}
+
+/// Small gold coin used in counters and stat rows.
+struct GoldCoinIcon: View {
+    var size: CGFloat = 20
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color(red: 1.0, green: 0.88, blue: 0.35), GameTheme.goldDeep],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            Circle()
+                .strokeBorder(Color(red: 0.72, green: 0.45, blue: 0.03), lineWidth: size * 0.11)
+            Image(systemName: "star.fill")
+                .font(.system(size: size * 0.44, weight: .black))
+                .foregroundStyle(Color(red: 0.85, green: 0.55, blue: 0.05))
+        }
+        .frame(width: size, height: size)
+    }
+}
+
+/// Two-line tilted RAIL RUSH logo shared by the loading and home screens.
+struct GameLogo: View {
+    var size: CGFloat = 64
+
+    var body: some View {
+        VStack(spacing: 0) {
+            OutlinedText(
+                text: "RAIL",
+                size: size,
+                fill: AnyShapeStyle(
+                    LinearGradient(
+                        colors: [Color(red: 1.0, green: 0.82, blue: 0.20), Color(red: 1.0, green: 0.50, blue: 0.10)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            )
+            OutlinedText(
+                text: "RUSH",
+                size: size,
+                fill: AnyShapeStyle(
+                    LinearGradient(
+                        colors: [Color(red: 0.20, green: 0.92, blue: 0.86), Color(red: 0.0, green: 0.62, blue: 0.68)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            )
+            .padding(.top, -size * 0.30)
+        }
+        .shadow(color: .black.opacity(0.35), radius: 0, x: 3, y: 5)
+        .rotationEffect(.degrees(-4))
+    }
+}
+
+/// Squish-on-press button style for cards and icon buttons.
+struct PressableButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.94 : 1.0)
+            .animation(.spring(duration: 0.2), value: configuration.isPressed)
+    }
+}
