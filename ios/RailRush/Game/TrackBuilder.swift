@@ -19,6 +19,16 @@ enum TrackBuilder {
         /// Festival props lining the street: concert speaker stacks + congas.
         var speaker: Entity?
         var conga: Entity?
+        /// Graffiti brick wall sections tiled along both track edges.
+        var grafWall: Entity?
+        /// Tropical palms flanking the track.
+        var palm: Entity?
+        /// Balloon clusters accenting the walls.
+        var balloons: Entity?
+        /// Railway power pole carrying the sagging overhead wires.
+        var powerPole: Entity?
+        /// Parked graffiti train styles cloned onto the side rails.
+        var parkedTrains: [Entity] = []
     }
 
     static var decorPrototypes = DecorPrototypes()
@@ -130,6 +140,85 @@ enum TrackBuilder {
             )
             decorPrototypes.conga = container
         }
+        if let name = GeneratedAssets.grafWallModel,
+           let visual = try? await Entity(named: name) {
+            let container = Entity()
+            attachGeneratedModelVisual(
+                visual,
+                to: container,
+                targetHeight: 2.3,
+                localFrontAxis: GeneratedAssets.grafWallFrontAxis,
+                localUpAxis: GeneratedAssets.grafWallUpAxis,
+                desiredWorldForward: [0, 0, 1]
+            )
+            decorPrototypes.grafWall = container
+        }
+        if let name = GeneratedAssets.palmTreeModel,
+           let visual = try? await Entity(named: name) {
+            let container = Entity()
+            attachGeneratedModelVisual(
+                visual,
+                to: container,
+                targetHeight: 4.4,
+                localFrontAxis: GeneratedAssets.palmTreeFrontAxis,
+                localUpAxis: GeneratedAssets.palmTreeUpAxis
+            )
+            decorPrototypes.palm = container
+        }
+        if let name = GeneratedAssets.balloonClusterModel,
+           let visual = try? await Entity(named: name) {
+            let container = Entity()
+            attachGeneratedModelVisual(
+                visual,
+                to: container,
+                targetHeight: 1.7,
+                localFrontAxis: GeneratedAssets.balloonClusterFrontAxis,
+                localUpAxis: GeneratedAssets.balloonClusterUpAxis
+            )
+            decorPrototypes.balloons = container
+        }
+        if let name = GeneratedAssets.powerPoleModel,
+           let visual = try? await Entity(named: name) {
+            let container = Entity()
+            // Directionless model — no yaw correction applied.
+            attachGeneratedModelVisual(
+                visual,
+                to: container,
+                targetHeight: 5.8,
+                localFrontAxis: GeneratedAssets.powerPoleFrontAxis,
+                localUpAxis: GeneratedAssets.powerPoleUpAxis
+            )
+            decorPrototypes.powerPole = container
+        }
+
+        // Parked-train prototypes reuse the oncoming-train model styles so the
+        // corridor reads as "running between two graffiti trains" (mockup).
+        var parkedStyles: [(model: String, frontAxis: GeneratedModelAxis?)] = [
+            (GeneratedAssets.trainModel, GeneratedAssets.trainFrontAxis)
+        ]
+        parkedStyles += GeneratedAssets.extraTrainStyles.map { ($0.model, $0.frontAxis) }
+        for style in parkedStyles {
+            guard let visual = try? await Entity(named: style.model) else { continue }
+            // Directionless cars infer their length axis from measured bounds
+            // (same contract as the obstacle pool).
+            let frontAxis: GeneratedModelAxis
+            if let styleFront = style.frontAxis {
+                frontAxis = styleFront
+            } else {
+                let bounds = visual.visualBounds(relativeTo: nil)
+                frontAxis = bounds.extents.x > bounds.extents.z ? .positiveX : .positiveZ
+            }
+            let container = Entity()
+            attachGeneratedModelVisual(
+                visual,
+                to: container,
+                targetHeight: 2.8,
+                localFrontAxis: frontAxis,
+                localUpAxis: GeneratedAssets.trainUpAxis,
+                desiredWorldForward: [0, 0, 1]
+            )
+            decorPrototypes.parkedTrains.append(container)
+        }
     }
 
     private static let buildingPalette: [UIColor] = [
@@ -155,6 +244,15 @@ enum TrackBuilder {
         let segment = Entity()
 
         addTrackBed(to: segment)
+
+        // Graffiti brick wall rows sealing both edges (mockup look); the curb
+        // strip stays in front of them as the raised border.
+        if let wall = decorPrototypes.grafWall {
+            addGraffitiWallRows(from: wall, to: segment)
+        }
+
+        // Railway power poles + sagging wires running down both sides.
+        addPowerPoleLines(to: segment)
 
         if let curb = decorPrototypes.curb {
             // Generated sidewalk curb strips line both edges of the track.
@@ -241,6 +339,137 @@ enum TrackBuilder {
         segment.addChild(truss)
     }
 
+    /// Tiles the graffiti wall prototype into continuous rows along both track
+    /// edges. Sections are stretched along the wall's long axis so a whole
+    /// number of clones covers the segment exactly — no gaps, no overlap. The
+    /// painted face is turned toward the track on both sides.
+    private static func addGraffitiWallRows(from prototype: Entity, to segment: Entity) {
+        let bounds = prototype.visualBounds(relativeTo: nil)
+        // Prototype is normalized front→+Z, so the wall length runs along X;
+        // fall back to the measured long axis for directionless metadata.
+        let longAxisIsX = bounds.extents.x >= bounds.extents.z
+        let rawLength = max(longAxisIsX ? bounds.extents.x : bounds.extents.z, 0.001)
+
+        let sectionsPerSide = 4
+        let spacing = segmentLength / Float(sectionsPerSide)
+        let lengthScale = spacing / rawLength
+
+        for side in [Float(-1), 1] {
+            // Yaw the +Z face toward the track center; mirrored per side.
+            let yaw: Float = longAxisIsX ? -side * .pi / 2 : (side < 0 ? .pi : 0)
+            let orientation = simd_quatf(angle: yaw, axis: SIMD3<Float>(0, 1, 0))
+
+            for index in 0..<sectionsPerSide {
+                let clone = prototype.clone(recursive: true)
+                // Stretch in LOCAL space so it always targets the long axis.
+                clone.scale = longAxisIsX ? [lengthScale, 1, 1] : [1, 1, lengthScale]
+                clone.orientation = orientation
+                clone.position = [side * 6.0, 0, -segmentLength / 2 + spacing * (Float(index) + 0.5)]
+                segment.addChild(clone)
+            }
+        }
+    }
+
+    /// Power poles every 20 m on both sides with double catenary wires sagging
+    /// between them. Pole pitch divides the segment length, so recycled
+    /// segments keep the wire line continuous.
+    private static func addPowerPoleLines(to segment: Entity) {
+        let poleZs: [Float] = [-15, 5]
+        let wireY: Float = 4.95
+
+        for side in [Float(-1), 1] {
+            let poleX = side * 6.9
+            for z in poleZs {
+                let pole: Entity
+                if let prototype = decorPrototypes.powerPole {
+                    // Front stays on +Z so the crossarms span across the wires.
+                    pole = prototype.clone(recursive: true)
+                } else {
+                    pole = makeFallbackPowerPole()
+                }
+                pole.position = [poleX, 0, z]
+                segment.addChild(pole)
+
+                // Each pole owns the two wire spans reaching back 20 m to the
+                // previous pole position (periodic across segments).
+                for wireOffset in [Float(-0.4), 0.4] {
+                    let wire = makeCatenaryWire(
+                        from: SIMD3<Float>(poleX + wireOffset, wireY, z - 20),
+                        to: SIMD3<Float>(poleX + wireOffset, wireY, z),
+                        sag: 0.8
+                    )
+                    segment.addChild(wire)
+                }
+            }
+        }
+    }
+
+    /// Fallback pole when the generated model is unavailable: dark timber post
+    /// with two crossarms.
+    private static func makeFallbackPowerPole() -> Entity {
+        let pole = Entity()
+        let wood = SimpleMaterial(color: UIColor(red: 0.24, green: 0.16, blue: 0.12, alpha: 1), roughness: 0.9, isMetallic: false)
+        let post = ModelEntity(mesh: .generateBox(size: [0.22, 5.7, 0.22]), materials: [wood])
+        post.position = [0, 2.85, 0]
+        pole.addChild(post)
+        for y in [Float(4.9), 5.35] {
+            let arm = ModelEntity(mesh: .generateBox(size: [1.7, 0.13, 0.13]), materials: [wood])
+            arm.position = [0, y, 0]
+            pole.addChild(arm)
+        }
+        return pole
+    }
+
+    /// A sagging wire approximated by short straight pieces along a catenary.
+    private static func makeCatenaryWire(from start: SIMD3<Float>, to end: SIMD3<Float>, sag: Float) -> Entity {
+        let wire = Entity()
+        let material = UnlitMaterial(color: UIColor(white: 0.12, alpha: 1))
+        let pieces = 8
+        var previous = start
+        for i in 1...pieces {
+            let t = Float(i) / Float(pieces)
+            var point = simd_mix(start, end, SIMD3<Float>(repeating: t))
+            point.y -= sinf(t * .pi) * sag
+            let delta = point - previous
+            let length = max(simd_length(delta), 0.001)
+            let piece = ModelEntity(
+                mesh: .generateBox(size: [0.035, 0.035, length]),
+                materials: [material]
+            )
+            piece.position = (previous + point) / 2
+            // Pitch each piece so it follows the sag curve.
+            let pitch = atan2f(delta.y, simd_length(SIMD3<Float>(delta.x, 0, delta.z)))
+            piece.orientation = simd_quatf(angle: -pitch, axis: [1, 0, 0])
+            previous = point
+            wire.addChild(piece)
+        }
+        return wire
+    }
+
+    /// Neon color set for the floating music notes along the track edges.
+    private static let neonNotePalette: [UIColor] = [
+        UIColor(red: 1.0, green: 0.32, blue: 0.76, alpha: 1),
+        UIColor(red: 0.72, green: 0.42, blue: 1.0, alpha: 1),
+        UIColor(red: 1.0, green: 0.85, blue: 0.30, alpha: 1),
+    ]
+
+    /// Glowing eighth-note built from unlit primitives (mockup neon notes).
+    private static func makeNeonNote(color: UIColor) -> Entity {
+        let note = Entity()
+        let material = UnlitMaterial(color: color)
+        let head = ModelEntity(mesh: .generateSphere(radius: 0.16), materials: [material])
+        head.scale = [1, 0.78, 0.6]
+        note.addChild(head)
+        let stem = ModelEntity(mesh: .generateBox(size: [0.05, 0.6, 0.05], cornerRadius: 0.02), materials: [material])
+        stem.position = [0.15, 0.32, 0]
+        note.addChild(stem)
+        let flag = ModelEntity(mesh: .generateBox(size: [0.2, 0.24, 0.05], cornerRadius: 0.02), materials: [material])
+        flag.position = [0.26, 0.5, 0]
+        flag.orientation = simd_quatf(angle: -0.5, axis: [0, 0, 1])
+        note.addChild(flag)
+        return note
+    }
+
     /// A sagging string of colorful triangle bunting flags across the track.
     private static func addBuntingLine(to segment: Entity, atZ z: Float, height: Float) {
         let line = Entity()
@@ -272,60 +501,75 @@ enum TrackBuilder {
         segment.addChild(line)
     }
 
-    /// Subway Surfers-style track bed, built procedurally for a guaranteed
-    /// clean look: packed brown dirt, per-lane red-brown sleepers with shiny
-    /// purple-tinted rails, and moss patches + pebbles in the dirt strips.
+    /// Mockup-style sunset track bed: dark packed dirt, full-width wooden
+    /// sleepers, rails for the three lanes plus a parked-train siding per
+    /// side, and bright paint splats across the dirt.
     private static func addTrackBed(to segment: Entity) {
-        // Full-width packed dirt bed; top surface sits at y = 0.
+        // Full-width packed dirt bed, dusk-darkened; top surface sits at y = 0.
         let bed = ModelEntity(
             mesh: .generateBox(size: [9.6, 0.24, segmentLength]),
-            materials: [SimpleMaterial(color: UIColor(red: 0.55, green: 0.4, blue: 0.26, alpha: 1), roughness: 1, isMetallic: false)]
+            materials: [SimpleMaterial(color: UIColor(red: 0.42, green: 0.30, blue: 0.20, alpha: 1), roughness: 1, isMetallic: false)]
         )
         bed.position = [0, -0.12, 0]
         segment.addChild(bed)
 
-        // Shared meshes/materials — sleepers and rails are cloned many times.
-        let sleeperMesh = MeshResource.generateBox(size: [1.6, 0.1, 0.42], cornerRadius: 0.03)
-        let sleeperMaterial = SimpleMaterial(color: UIColor(red: 0.58, green: 0.22, blue: 0.16, alpha: 1), roughness: 0.85, isMetallic: false)
-        let railMesh = MeshResource.generateBox(size: [0.1, 0.12, segmentLength])
-        let railMaterial = SimpleMaterial(color: UIColor(red: 0.72, green: 0.7, blue: 0.82, alpha: 1), roughness: 0.32, isMetallic: true)
-
+        // Full-width wooden sleepers spanning the whole bed (mockup look).
+        let sleeperMesh = MeshResource.generateBox(size: [9.2, 0.1, 0.5], cornerRadius: 0.03)
+        let sleeperMaterial = SimpleMaterial(color: UIColor(red: 0.46, green: 0.21, blue: 0.15, alpha: 1), roughness: 0.85, isMetallic: false)
         let sleeperSpacing: Float = 1.4
         let sleeperCount = Int(segmentLength / sleeperSpacing)
+        for i in 0..<sleeperCount {
+            let sleeper = ModelEntity(mesh: sleeperMesh, materials: [sleeperMaterial])
+            sleeper.position = [0, 0.05, -segmentLength / 2 + sleeperSpacing * (Float(i) + 0.5)]
+            segment.addChild(sleeper)
+        }
 
-        for laneX in laneXs {
-            for i in 0..<sleeperCount {
-                let sleeper = ModelEntity(mesh: sleeperMesh, materials: [sleeperMaterial])
-                sleeper.position = [laneX, 0.05, -segmentLength / 2 + sleeperSpacing * (Float(i) + 0.5)]
-                segment.addChild(sleeper)
-            }
+        // Rails: three player lanes + one parked-train siding per side, warm
+        // sunset sheen on the metal.
+        let railMesh = MeshResource.generateBox(size: [0.1, 0.12, segmentLength])
+        let railMaterial = SimpleMaterial(color: UIColor(red: 0.80, green: 0.66, blue: 0.70, alpha: 1), roughness: 0.3, isMetallic: true)
+        for railX in laneXs + [-4.35, 4.35] {
             for offset in [Float(-0.62), 0.62] {
                 let rail = ModelEntity(mesh: railMesh, materials: [railMaterial])
-                rail.position = [laneX + offset, 0.16, 0]
+                rail.position = [railX + offset, 0.16, 0]
                 segment.addChild(rail)
             }
         }
 
-        // Moss patches on the outer dirt shoulders (like the reference art).
-        let mossColors: [UIColor] = [
-            UIColor(red: 0.42, green: 0.6, blue: 0.24, alpha: 1),
-            UIColor(red: 0.36, green: 0.54, blue: 0.22, alpha: 1),
-            UIColor(red: 0.5, green: 0.66, blue: 0.28, alpha: 1),
+        // Bright paint splats loang across the dirt (replace the moss patches).
+        let splatColors: [UIColor] = [
+            UIColor(red: 1.0, green: 0.35, blue: 0.72, alpha: 1),
+            UIColor(red: 1.0, green: 0.82, blue: 0.25, alpha: 1),
+            UIColor(red: 0.22, green: 0.82, blue: 0.76, alpha: 1),
+            UIColor(red: 0.66, green: 0.40, blue: 0.95, alpha: 1),
         ]
-        for _ in 0..<10 {
-            let width = Float.random(in: 0.7...1.5)
-            let depth = Float.random(in: 0.6...1.2)
-            let moss = ModelEntity(
-                mesh: .generateBox(size: [width, 0.05, depth], cornerRadius: 0.025),
-                materials: [SimpleMaterial(color: mossColors.randomElement() ?? mossColors[0], roughness: 1, isMetallic: false)]
+        for index in 0..<12 {
+            let color = splatColors[index % splatColors.count]
+            let width = Float.random(in: 0.5...1.3)
+            let depth = Float.random(in: 0.45...1.0)
+            let splat = ModelEntity(
+                mesh: .generateBox(size: [width, 0.045, depth], cornerRadius: min(width, depth) * 0.45),
+                materials: [UnlitMaterial(color: color)]
             )
             let side: Float = Bool.random() ? 1 : -1
-            moss.position = [
-                side * Float.random(in: 3.3...4.3),
+            let band: ClosedRange<Float> = Bool.random() ? 2.9...4.3 : 0.75...1.25
+            let position = SIMD3<Float>(
+                side * Float.random(in: band),
                 0.012,
-                Float.random(in: -segmentLength / 2 + 1 ... segmentLength / 2 - 1),
-            ]
-            segment.addChild(moss)
+                Float.random(in: -segmentLength / 2 + 1 ... segmentLength / 2 - 1)
+            )
+            splat.position = position
+            splat.orientation = simd_quatf(angle: Float.random(in: 0...(2 * .pi)), axis: [0, 1, 0])
+            segment.addChild(splat)
+
+            // Smaller companion blob for an organic spill shape.
+            let blob = ModelEntity(
+                mesh: .generateBox(size: [width * 0.45, 0.04, depth * 0.5], cornerRadius: min(width, depth) * 0.2),
+                materials: [UnlitMaterial(color: color)]
+            )
+            blob.position = position + [Float.random(in: -0.5...0.5), 0.004, Float.random(in: -0.5...0.5)]
+            blob.orientation = simd_quatf(angle: Float.random(in: 0...(2 * .pi)), axis: [0, 1, 0])
+            segment.addChild(blob)
         }
 
         // Small pebbles scattered across the dirt strips between the tracks.
@@ -429,6 +673,38 @@ enum TrackBuilder {
                 clone.position = [side * 6.4, 0, 8]
                 container.addChild(clone)
             }
+            // Parked graffiti train on the siding — the mockup's "run between
+            // two trains" corridor. Styles cycled so the sides differ.
+            if !decorPrototypes.parkedTrains.isEmpty {
+                let styles = decorPrototypes.parkedTrains
+                let clone = styles[sideIndex % styles.count].clone(recursive: true)
+                clone.name = "gen_parked_train"
+                clone.position = [side * 4.35, 0, 0]
+                container.addChild(clone)
+            }
+            // Palms flanking the walls.
+            for _ in 0..<2 {
+                if let palm = decorPrototypes.palm {
+                    let clone = palm.clone(recursive: true)
+                    clone.name = "gen_palm"
+                    clone.position = [side * 7.4, 0, 0]
+                    container.addChild(clone)
+                }
+            }
+            // Balloon cluster accenting the wall top.
+            if let balloons = decorPrototypes.balloons {
+                let clone = balloons.clone(recursive: true)
+                clone.name = "gen_balloons"
+                clone.position = [side * 5.8, 2.2, 0]
+                container.addChild(clone)
+            }
+            // Neon music notes floating along the track edges.
+            for index in 0..<3 {
+                let note = makeNeonNote(color: neonNotePalette[(index + sideIndex) % neonNotePalette.count])
+                note.name = "gen_note"
+                note.position = [side * 3.8, 1.3, Float(index) * 12 - 12]
+                container.addChild(note)
+            }
         }
     }
 
@@ -515,51 +791,122 @@ enum TrackBuilder {
                 child.position = [side * Float.random(in: 6.1...7.0), 0, Float.random(in: -halfLength + 2 ... halfLength - 2)]
                 child.scale = SIMD3<Float>(repeating: Float.random(in: 0.85...1.05))
                 child.orientation = faceTrack
+            case "gen_parked_train":
+                // Stays on the siding rails; only Z and the facing flip vary.
+                child.position = [side * 4.35, 0, Float.random(in: -halfLength + 6 ... halfLength - 6)]
+                child.scale = SIMD3<Float>(repeating: 1)
+                child.orientation = simd_quatf(angle: Bool.random() ? .pi : 0, axis: [0, 1, 0])
+            case "gen_palm":
+                child.position = [side * Float.random(in: 6.6...8.2), 0, Float.random(in: -halfLength + 2 ... halfLength - 2)]
+                child.scale = SIMD3<Float>(repeating: Float.random(in: 0.85...1.2))
+                child.orientation = simd_quatf(angle: Float.random(in: 0...(2 * .pi)), axis: [0, 1, 0])
+            case "gen_balloons":
+                child.position = [
+                    side * Float.random(in: 5.5...6.1),
+                    Float.random(in: 1.9...2.6),
+                    Float.random(in: -halfLength + 2 ... halfLength - 2),
+                ]
+                child.scale = SIMD3<Float>(repeating: Float.random(in: 0.8...1.1))
+                child.orientation = simd_quatf(angle: Float.random(in: 0...(2 * .pi)), axis: [0, 1, 0])
+            case "gen_note":
+                child.position = [
+                    side * Float.random(in: 3.4...4.6),
+                    Float.random(in: 1.0...2.1),
+                    Float.random(in: -halfLength + 1 ... halfLength - 1),
+                ]
+                child.scale = SIMD3<Float>(repeating: Float.random(in: 0.85...1.25))
+                child.orientation = simd_quatf(angle: Float.random(in: -0.35...0.35), axis: [0, 0, 1])
             default:
                 break
             }
         }
     }
 
-    /// Static distant backdrop: sky, sun, and skyline silhouettes.
+    /// Static distant backdrop: sunset-purple sky bands, low warm sun, and a
+    /// glowing dusk skyline with lit windows (mockup look).
     static func makeBackdrop() -> Entity {
         let backdrop = Entity()
 
+        // Deep night-purple sky fading through violet and magenta to a hot
+        // orange horizon — stacked unlit bands fake the gradient cheaply.
         let sky = ModelEntity(
             mesh: .generatePlane(width: 400, height: 180),
-            materials: [UnlitMaterial(color: UIColor(red: 0.40, green: 0.72, blue: 0.98, alpha: 1))]
+            materials: [UnlitMaterial(color: UIColor(red: 0.17, green: 0.10, blue: 0.35, alpha: 1))]
         )
-        sky.position = [0, 60, -110]
+        sky.position = [0, 60, -112]
         backdrop.addChild(sky)
 
-        let horizonGlow = ModelEntity(
-            mesh: .generatePlane(width: 400, height: 26),
-            materials: [UnlitMaterial(color: UIColor(red: 1.0, green: 0.72, blue: 0.72, alpha: 1))]
+        let duskBand = ModelEntity(
+            mesh: .generatePlane(width: 400, height: 46),
+            materials: [UnlitMaterial(color: UIColor(red: 0.47, green: 0.22, blue: 0.58, alpha: 1))]
         )
-        horizonGlow.position = [0, 10, -109]
+        duskBand.position = [0, 33, -111]
+        backdrop.addChild(duskBand)
+
+        let magentaBand = ModelEntity(
+            mesh: .generatePlane(width: 400, height: 24),
+            materials: [UnlitMaterial(color: UIColor(red: 0.88, green: 0.34, blue: 0.60, alpha: 1))]
+        )
+        magentaBand.position = [0, 17, -110]
+        backdrop.addChild(magentaBand)
+
+        let horizonGlow = ModelEntity(
+            mesh: .generatePlane(width: 400, height: 12),
+            materials: [UnlitMaterial(color: UIColor(red: 1.0, green: 0.60, blue: 0.36, alpha: 1))]
+        )
+        horizonGlow.position = [0, 6, -109]
         backdrop.addChild(horizonGlow)
 
-        let sun = ModelEntity(
-            mesh: .generateSphere(radius: 7),
-            materials: [UnlitMaterial(color: UIColor(red: 1.0, green: 0.9, blue: 0.6, alpha: 1))]
+        // Low warm sun sinking behind the skyline, with a soft halo disc.
+        let halo = ModelEntity(
+            mesh: .generateSphere(radius: 11),
+            materials: [UnlitMaterial(color: UIColor(red: 1.0, green: 0.66, blue: 0.42, alpha: 1))]
         )
-        sun.position = [26, 46, -108]
+        halo.position = [18, 15, -108.6]
+        backdrop.addChild(halo)
+
+        let sun = ModelEntity(
+            mesh: .generateSphere(radius: 7.5),
+            materials: [UnlitMaterial(color: UIColor(red: 1.0, green: 0.88, blue: 0.55, alpha: 1))]
+        )
+        sun.position = [18, 15, -108]
         backdrop.addChild(sun)
 
-        // Distant skyline silhouettes in festival dusk purples and pinks.
+        // Dark violet skyline silhouettes with warm glowing windows.
         let silhouettes: [UIColor] = [
-            UIColor(red: 0.48, green: 0.36, blue: 0.72, alpha: 1),
-            UIColor(red: 0.62, green: 0.40, blue: 0.78, alpha: 1),
-            UIColor(red: 0.72, green: 0.44, blue: 0.70, alpha: 1),
+            UIColor(red: 0.26, green: 0.16, blue: 0.44, alpha: 1),
+            UIColor(red: 0.32, green: 0.18, blue: 0.50, alpha: 1),
+            UIColor(red: 0.38, green: 0.20, blue: 0.52, alpha: 1),
+        ]
+        let windowColors: [UIColor] = [
+            UIColor(red: 1.0, green: 0.82, blue: 0.40, alpha: 1),
+            UIColor(red: 1.0, green: 0.50, blue: 0.75, alpha: 1),
+            UIColor(red: 0.55, green: 0.85, blue: 1.0, alpha: 1),
         ]
         for i in 0..<14 {
             let height = Float.random(in: 12...34)
+            let width = Float.random(in: 6...12)
+            let x = Float(i - 7) * 14 + Float.random(in: -3...3)
             let tower = ModelEntity(
-                mesh: .generateBox(size: [Float.random(in: 6...12), height, 4]),
+                mesh: .generateBox(size: [width, height, 4]),
                 materials: [UnlitMaterial(color: silhouettes[i % silhouettes.count])]
             )
-            tower.position = [Float(i - 7) * 14 + Float.random(in: -3...3), height / 2, -100]
+            tower.position = [x, height / 2, -100]
             backdrop.addChild(tower)
+
+            // A scatter of lit windows on the front face.
+            for _ in 0..<6 {
+                let window = ModelEntity(
+                    mesh: .generateBox(size: [Float.random(in: 0.9...1.6), Float.random(in: 1.0...1.8), 0.1]),
+                    materials: [UnlitMaterial(color: windowColors.randomElement() ?? windowColors[0])]
+                )
+                window.position = [
+                    x + Float.random(in: -width * 0.35 ... width * 0.35),
+                    Float.random(in: height * 0.15 ... height * 0.9),
+                    -97.9,
+                ]
+                backdrop.addChild(window)
+            }
         }
 
         // Slow-falling confetti filling the air over the whole track.
@@ -587,10 +934,11 @@ enum TrackBuilder {
         confetti.name = "festival_confetti"
         backdrop.addChild(confetti)
 
-        // Far ground filler so gaps between buildings don't show sky
+        // Far ground filler so gaps between buildings don't show sky —
+        // dark dusk asphalt tone.
         let farGround = ModelEntity(
             mesh: .generateBox(size: [400, 0.2, 140]),
-            materials: [SimpleMaterial(color: UIColor(red: 0.32, green: 0.36, blue: 0.4, alpha: 1), roughness: 1, isMetallic: false)]
+            materials: [SimpleMaterial(color: UIColor(red: 0.16, green: 0.12, blue: 0.22, alpha: 1), roughness: 1, isMetallic: false)]
         )
         farGround.position = [0, -0.25, -60]
         backdrop.addChild(farGround)

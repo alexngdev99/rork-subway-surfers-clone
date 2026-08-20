@@ -225,16 +225,18 @@ final class RunnerWorld {
         camera.look(at: [0, 1.1, -5], from: camera.position, relativeTo: nil)
         sceneRoot.addChild(camera)
 
+        // Golden-hour key light: warm low sun from the horizon side.
         let sunlight = DirectionalLight()
-        sunlight.light.intensity = 5200
-        sunlight.light.color = UIColor(red: 1.0, green: 0.96, blue: 0.88, alpha: 1)
-        sunlight.orientation = simd_quatf(angle: -.pi / 3.4, axis: [1, 0, 0])
-            * simd_quatf(angle: .pi / 7, axis: [0, 1, 0])
+        sunlight.light.intensity = 4400
+        sunlight.light.color = UIColor(red: 1.0, green: 0.76, blue: 0.55, alpha: 1)
+        sunlight.orientation = simd_quatf(angle: -.pi / 4.2, axis: [1, 0, 0])
+            * simd_quatf(angle: .pi / 6, axis: [0, 1, 0])
         sceneRoot.addChild(sunlight)
 
+        // Magenta dusk fill bouncing off the purple sky.
         let fill = DirectionalLight()
-        fill.light.intensity = 1600
-        fill.light.color = UIColor(red: 0.75, green: 0.85, blue: 1.0, alpha: 1)
+        fill.light.intensity = 2100
+        fill.light.color = UIColor(red: 0.80, green: 0.52, blue: 0.98, alpha: 1)
         fill.orientation = simd_quatf(angle: .pi / 3, axis: [1, 0, 0])
         sceneRoot.addChild(fill)
     }
@@ -504,6 +506,22 @@ final class RunnerWorld {
                 localUpAxis: GeneratedAssets.trainUpAxis,
                 desiredWorldForward: [0, 0, 1] // oncoming: front faces the runner
             )
+            // Warm glowing headlights on the cab face (front = +Z, toward the
+            // runner) — sells the oncoming train in the dusk scene.
+            let trainBounds = container.visualBounds(relativeTo: container)
+            for offsetX in [Float(-0.32), 0.32] {
+                let headlight = ModelEntity(
+                    mesh: .generateSphere(radius: 0.12),
+                    materials: [UnlitMaterial(color: UIColor(red: 1.0, green: 0.87, blue: 0.55, alpha: 1))]
+                )
+                headlight.position = [
+                    trainBounds.center.x + offsetX * trainBounds.extents.x,
+                    max(0.9, trainBounds.center.y * 0.55),
+                    trainBounds.max.z + 0.03,
+                ]
+                container.addChild(headlight)
+            }
+
             let node = ObstacleNode(entity: container, kind: .trainParked)
             configureHitbox(for: node)
             container.isEnabled = false

@@ -105,6 +105,32 @@ enum GeneratedAssets {
     static let congaDrumsFrontAxis: GeneratedModelAxis? = nil
     static let congaDrumsUpAxis: GeneratedModelAxis = .positiveY
 
+    // MARK: Sunset-festival environment set (bundled USDZ, no extension)
+
+    /// Graffiti brick wall sections tiled along both track edges.
+    /// nil → the curb/containment-wall fallback remains the border.
+    static let grafWallModel: String? = "graffiti_brick_wall"
+    /// Tropical palm trees flanking the track.
+    static let palmTreeModel: String? = "tropical_palm_tree"
+    /// Party balloon clusters accenting the walls.
+    static let balloonClusterModel: String? = "party_balloon_cluster"
+    /// Railway power poles carrying the sagging overhead wires.
+    static let powerPoleModel: String? = "railway_power_pole"
+
+    /// Wall murals face +Z (persisted metadata) — turned toward the track.
+    static let grafWallFrontAxis: GeneratedModelAxis? = .positiveZ
+    static let grafWallUpAxis: GeneratedModelAxis = .positiveY
+    /// Palm is radially symmetric — directionless.
+    static let palmTreeFrontAxis: GeneratedModelAxis? = nil
+    static let palmTreeUpAxis: GeneratedModelAxis = .positiveY
+    /// Balloon bouquet is directionless.
+    static let balloonClusterFrontAxis: GeneratedModelAxis? = nil
+    static let balloonClusterUpAxis: GeneratedModelAxis = .positiveY
+    /// Utility pole is radially symmetric — directionless per persisted
+    /// metadata; wires attach at fixed X offsets regardless of yaw.
+    static let powerPoleFrontAxis: GeneratedModelAxis? = nil
+    static let powerPoleUpAxis: GeneratedModelAxis = .positiveY
+
     // MARK: Jetpack power-up prop (bundled USDZ, no extension)
 
     /// Wearable jetpack model shown on the runner's back while flying.
