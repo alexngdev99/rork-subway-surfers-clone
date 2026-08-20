@@ -18,6 +18,13 @@ final class HapticsService {
         heavy.prepare()
     }
 
+    /// Gentle tap for UI buttons and cards (store, menus).
+    func uiTap() {
+        guard isEnabled else { return }
+        light.impactOccurred(intensity: 0.5)
+        light.prepare()
+    }
+
     func laneChange() {
         guard isEnabled else { return }
         light.impactOccurred(intensity: 0.7)

@@ -98,6 +98,9 @@ struct ChunkyButtonStyle: ButtonStyle {
         .compositingGroup()
         .shadow(color: .black.opacity(0.35), radius: 6, y: 4)
         .animation(.easeOut(duration: 0.08), value: pressed)
+        .onChange(of: pressed) { _, isPressed in
+            if isPressed { HapticsService.shared.uiTap() }
+        }
     }
 }
 
@@ -302,5 +305,8 @@ struct PressableButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.94 : 1.0)
             .animation(.spring(duration: 0.2), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, isPressed in
+                if isPressed { HapticsService.shared.uiTap() }
+            }
     }
 }
