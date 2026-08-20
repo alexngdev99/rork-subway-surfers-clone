@@ -23,6 +23,67 @@ struct AssetIcon: View {
     }
 }
 
+// MARK: - Counting number
+
+/// Outlined number that rolls toward its target instead of jumping — with a
+/// small pop and a gold flash while counting up. Used for wallet chips and
+/// the in-run coin counter so collected rewards feel earned tick by tick.
+struct CountingOutlinedText: View {
+    let value: Int
+    var size: CGFloat = 14
+    var fill: AnyShapeStyle = AnyShapeStyle(.white)
+    var formatter: (Int) -> String = { $0.formatted() }
+
+    @State private var displayed: Int?
+    @State private var isCountingUp = false
+    @State private var pop = false
+
+    var body: some View {
+        OutlinedText(
+            text: formatter(displayed ?? value),
+            size: size,
+            fill: isCountingUp
+                ? AnyShapeStyle(
+                    LinearGradient(
+                        colors: [Color(red: 1.0, green: 0.88, blue: 0.35), GameTheme.goldDeep],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                : fill
+        )
+        .scaleEffect(pop ? 1.16 : 1.0)
+        .task(id: value) { await roll(to: value) }
+    }
+
+    /// Eases the displayed number toward `target` over ~0.55s. `.task(id:)`
+    /// cancels a running roll when a newer value arrives, so rapid pickups
+    /// simply retarget mid-count from wherever the number currently is.
+    private func roll(to target: Int) async {
+        guard let start = displayed, start != target else {
+            displayed = target
+            return
+        }
+        isCountingUp = target > start
+        withAnimation(.spring(duration: 0.22, bounce: 0.55)) { pop = true }
+
+        let distance = abs(target - start)
+        let steps = max(1, min(24, distance))
+        let stepTime = 0.55 / Double(steps)
+        for step in 1...steps {
+            if Task.isCancelled { return }
+            let t = Double(step) / Double(steps)
+            let eased = 1 - pow(1 - t, 3)
+            displayed = start + Int((Double(target - start) * eased).rounded())
+            try? await Task.sleep(for: .seconds(stepTime))
+        }
+        if Task.isCancelled { return }
+        displayed = target
+        withAnimation(.spring(duration: 0.3)) { pop = false }
+        isCountingUp = false
+    }
+}
+
 // MARK: - Notification badge
 
 /// Small red notification bubble pinned to a corner.
@@ -109,7 +170,7 @@ private struct CurrencyChip<Icon: View>: View {
         Button(action: onPlus) {
             HStack(spacing: 4) {
                 icon
-                OutlinedText(text: Self.compact(value), size: 14)
+                CountingOutlinedText(value: value, size: 14, formatter: Self.compact)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                 ZStack {

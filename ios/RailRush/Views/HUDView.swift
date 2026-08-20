@@ -51,8 +51,7 @@ struct HUDView: View {
                         }
 
                         HUDChip {
-                            OutlinedText(text: "\(state.coins)", size: 18)
-                                .animation(.snappy(duration: 0.2), value: state.coins)
+                            CountingOutlinedText(value: state.coins, size: 18, formatter: { "\($0)" })
                             MusicCoinIcon(size: 18)
                         }
                     }
