@@ -6,6 +6,7 @@ enum SoundEffect: String, CaseIterable {
     case jump = "cartoon_jump_whoosh"
     case crash = "cartoon_crash_clang"
     case powerUp = "magic_powerup_pop"
+    case reward = "reward_claim_jingle"
 }
 
 /// A bundled festival soundtrack entry.

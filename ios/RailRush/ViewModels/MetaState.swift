@@ -258,6 +258,7 @@ final class MetaState {
         grant(mission.reward)
         seasonPoints = min(Self.seasonTarget, seasonPoints + 1)
         persistMissions()
+        AudioService.shared.play(.reward)
         HapticsService.shared.powerUp()
     }
 
@@ -269,6 +270,7 @@ final class MetaState {
         seasonLevel += 1
         seasonMissions = Self.makeSeasonMissions(level: seasonLevel)
         persistMissions()
+        AudioService.shared.play(.reward)
         HapticsService.shared.powerUp()
     }
 
@@ -284,6 +286,7 @@ final class MetaState {
 
         let day = LoginDay.week[(loginStreak - 1) % 7]
         grant(day.reward)
+        AudioService.shared.play(.reward)
         HapticsService.shared.powerUp()
     }
 
@@ -303,6 +306,7 @@ final class MetaState {
         grant(reward)
         store.lastFreeReward = Date()
         freeRewardReadyAt = Date().addingTimeInterval(Self.freeRewardInterval)
+        AudioService.shared.play(.reward)
         HapticsService.shared.powerUp()
         return reward
     }
@@ -313,6 +317,7 @@ final class MetaState {
         claimedTiers.insert(tier.id)
         store.claimedTiers = Array(claimedTiers)
         grant(RewardBundle(keys: tier.keys))
+        AudioService.shared.play(.reward)
         HapticsService.shared.powerUp()
     }
 
@@ -362,6 +367,7 @@ final class MetaState {
         case .keys(let amount): keys += amount
         case .upgrade(let kind): setLevel(level(of: kind) + 1, for: kind)
         }
+        AudioService.shared.play(.reward)
         HapticsService.shared.powerUp()
         return reward
     }
