@@ -137,19 +137,15 @@ struct CurrencyBar: View {
                     size: 15,
                     fill: AnyShapeStyle(GameTheme.gold)
                 )
-                Image(systemName: "star.fill")
-                    .font(.system(size: 16, weight: .black))
-                    .foregroundStyle(GameTheme.gold)
-                    .shadow(color: GameTheme.outline.opacity(0.8), radius: 0, y: 1.5)
+                AssetIcon(name: "star_sparkle_3d", size: 20, fallbackSymbol: "star.fill")
+                    .shadow(color: GameTheme.outline.opacity(0.5), radius: 0, y: 1.5)
             }
 
             if showsSettings {
                 Button {
                     meta.route = .settings
                 } label: {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 17, weight: .black))
-                        .foregroundStyle(.white.opacity(0.92))
+                    AssetIcon(name: "gear_cog_wheel", size: 24, fallbackSymbol: "gearshape.fill")
                         .frame(width: 36, height: 36)
                         .background(GameTheme.chip, in: Circle())
                         .overlay(Circle().strokeBorder(.white.opacity(0.2), lineWidth: 1.5))
@@ -311,6 +307,17 @@ enum NavTab: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Generated sticker art for the tab icon (falls back to `symbol`).
+    var iconAsset: String {
+        switch self {
+        case .missions: return "clipboard_checklist_sticker"
+        case .me: return "runner_shield_badge_sticker"
+        case .home: return "cozy_house_icon"
+        case .store: return "shopping_cart_coins"
+        case .events: return "ticket_stub_star_stamp"
+        }
+    }
+
     var symbolColor: Color {
         switch self {
         case .missions: return Color(red: 0.95, green: 0.87, blue: 0.70)
@@ -359,10 +366,8 @@ private struct NavTabButton: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 3) {
-                Image(systemName: tab.symbol)
-                    .font(.system(size: 20, weight: .black))
-                    .foregroundStyle(tab.symbolColor)
-                    .shadow(color: GameTheme.outline.opacity(0.8), radius: 0, y: 1.5)
+                AssetIcon(name: tab.iconAsset, size: 27, fallbackSymbol: tab.symbol)
+                    .shadow(color: GameTheme.outline.opacity(0.5), radius: 0, y: 1.5)
                 OutlinedText(text: tab.label, size: 10)
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)

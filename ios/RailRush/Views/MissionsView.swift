@@ -15,6 +15,7 @@ struct MissionsView: View {
         var id: String { rawValue }
         var label: String { self == .daily ? "DAILY" : "SEASON" }
         var symbol: String { self == .daily ? "checklist" : "sun.max.fill" }
+        var iconAsset: String { self == .daily ? "task_list_board_sticker" : "sun_rays_sticker" }
     }
 
     private var missions: [Mission] {
@@ -79,9 +80,7 @@ struct MissionsView: View {
 
     private var countdownChip: some View {
         HStack(spacing: 6) {
-            Image(systemName: "stopwatch.fill")
-                .font(.system(size: 14, weight: .black))
-                .foregroundStyle(GameTheme.gold)
+            AssetIcon(name: "stopwatch_gold_purple", size: 19, fallbackSymbol: "stopwatch.fill")
             OutlinedText(text: Self.countdownText(to: meta.seasonEnd), size: 15)
         }
         .padding(.horizontal, 16)
@@ -132,9 +131,8 @@ struct MissionsView: View {
                     withAnimation(.spring(duration: 0.3)) { tab = item }
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: item.symbol)
-                            .font(.system(size: 13, weight: .black))
-                            .foregroundStyle(item == tab ? GameTheme.gold : .white.opacity(0.6))
+                        AssetIcon(name: item.iconAsset, size: 22, fallbackSymbol: item.symbol)
+                            .saturation(item == tab ? 1 : 0.45)
                         OutlinedText(text: item.label, size: 15)
                     }
                     .frame(maxWidth: .infinity)
@@ -282,23 +280,16 @@ private struct MissionRow: View {
         case .collectSprays:
             AssetIcon(name: "spray_can_lightning", size: 44, fallbackSymbol: "paintbrush.fill")
         case .jumpTimes:
-            symbolIcon("figure.jumprope")
+            AssetIcon(name: "arrow_spring_bounce", size: 42, fallbackSymbol: "figure.jumprope")
         case .slideTimes:
-            symbolIcon("figure.skiing.downhill")
+            AssetIcon(name: "arrow_down_under_bar", size: 42, fallbackSymbol: "figure.skiing.downhill")
         case .scoreSingleRun:
-            symbolIcon("star.circle.fill")
+            AssetIcon(name: "medal_coin_star_sticker", size: 42, fallbackSymbol: "star.circle.fill")
         case .completeRuns:
-            symbolIcon("flag.checkered")
+            AssetIcon(name: "racing_flag_checkered", size: 42, fallbackSymbol: "flag.checkered")
         case .usePowerUps:
-            symbolIcon("bolt.circle.fill")
+            AssetIcon(name: "lightning_bolt_sticker", size: 42, fallbackSymbol: "bolt.circle.fill")
         }
-    }
-
-    private func symbolIcon(_ name: String) -> some View {
-        Image(systemName: name)
-            .font(.system(size: 24, weight: .black))
-            .foregroundStyle(Color(red: 0.55, green: 0.75, blue: 1.0))
-            .shadow(color: GameTheme.outline.opacity(0.8), radius: 0, y: 1.5)
     }
 }
 

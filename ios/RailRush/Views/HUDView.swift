@@ -42,10 +42,8 @@ struct HUDView: View {
                                     )
                                 )
                             )
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 17, weight: .black))
-                                .foregroundStyle(GameTheme.gold)
-                                .shadow(color: GameTheme.outline.opacity(0.8), radius: 0, y: 1.5)
+                            AssetIcon(name: "star_sparkle_3d", size: 21, fallbackSymbol: "star.fill")
+                                .shadow(color: GameTheme.outline.opacity(0.5), radius: 0, y: 1.5)
                             OutlinedText(text: Self.paddedScore(state.score), size: 30)
                                 .animation(.snappy(duration: 0.2), value: state.score)
                         }
@@ -219,10 +217,8 @@ private struct PowerUpBadge: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: type.symbolName)
-                .font(.system(size: 14, weight: .black))
-                .foregroundStyle(.white)
-                .shadow(color: GameTheme.outline.opacity(0.8), radius: 0, y: 1.5)
+            AssetIcon(name: type.iconAssetName, size: 22, fallbackSymbol: type.symbolName)
+                .shadow(color: GameTheme.outline.opacity(0.5), radius: 0, y: 1.5)
             OutlinedText(text: type.displayName, size: 14)
             ProgressView(value: progress)
                 .progressViewStyle(.linear)

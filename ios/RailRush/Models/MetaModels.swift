@@ -103,6 +103,16 @@ enum StoreTab: String, CaseIterable, Identifiable {
         case .mystery: return "cube.box.fill"
         }
     }
+
+    /// Generated sticker art for the tab icon (falls back to `symbol`).
+    var iconAsset: String {
+        switch self {
+        case .offers: return "price_tag_sticker"
+        case .coins: return "gold_coin_music_note"
+        case .powerUps: return "lightning_bolt_sticker"
+        case .mystery: return "mystery_cube_box_coins"
+        }
+    }
 }
 
 /// Full-screen meta destinations layered over the home hub.

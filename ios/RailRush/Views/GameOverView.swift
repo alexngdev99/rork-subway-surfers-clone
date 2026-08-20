@@ -23,9 +23,7 @@ struct GameOverView: View {
 
                         if state.lastRunWasBest {
                             HStack(spacing: 6) {
-                                Image(systemName: "crown.fill")
-                                    .font(.system(size: 14, weight: .black))
-                                    .foregroundStyle(GameTheme.outline)
+                                AssetIcon(name: "crown_gems_sticker", size: 20, fallbackSymbol: "crown.fill")
                                 Text("NEW BEST!")
                                     .font(.system(size: 15, weight: .black, design: .rounded))
                                     .foregroundStyle(GameTheme.outline)
@@ -64,9 +62,7 @@ struct GameOverView: View {
                             }
                             StatWell(title: "BEST") {
                                 HStack(spacing: 6) {
-                                    Image(systemName: "trophy.fill")
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundStyle(GameTheme.gold)
+                                    AssetIcon(name: "trophy_cup_star", size: 19, fallbackSymbol: "trophy.fill")
                                     OutlinedText(text: "\(state.bestScore)", size: 20)
                                 }
                             }
@@ -75,10 +71,8 @@ struct GameOverView: View {
                         HStack(spacing: 12) {
                             Button(action: onHome) {
                                 HStack(spacing: 7) {
-                                    Image(systemName: "house.fill")
-                                        .font(.system(size: 17, weight: .black))
-                                        .foregroundStyle(.white)
-                                        .shadow(color: GameTheme.outline.opacity(0.9), radius: 0, y: 1.5)
+                                    AssetIcon(name: "cozy_house_icon", size: 24, fallbackSymbol: "house.fill")
+                                        .shadow(color: GameTheme.outline.opacity(0.5), radius: 0, y: 1.5)
                                     OutlinedText(text: "HOME", size: 19)
                                 }
                                 .frame(maxWidth: .infinity)

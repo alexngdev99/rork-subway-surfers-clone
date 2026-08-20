@@ -82,9 +82,7 @@ struct CharactersView: View {
                         .saturation(focusedSlot.isLocked ? 0.1 : 1)
                         .overlay {
                             if focusedSlot.isLocked {
-                                Image(systemName: "lock.fill")
-                                    .font(.system(size: 44, weight: .black))
-                                    .foregroundStyle(.white.opacity(0.9))
+                                AssetIcon(name: "padlock_closed_3d", size: 60, fallbackSymbol: "lock.fill")
                                     .shadow(color: .black.opacity(0.7), radius: 4)
                             }
                         }
@@ -148,11 +146,10 @@ struct CharactersView: View {
                     )
                 )
                 .overlay(alignment: .topTrailing) {
-                    // Purple spray splash like the mockup's paper wall.
-                    Image(systemName: "crown.fill")
-                        .font(.system(size: 20, weight: .black))
-                        .foregroundStyle(Color(red: 0.58, green: 0.32, blue: 0.88).opacity(0.55))
-                        .padding(16)
+                    // Crown sticker accent like the mockup's paper wall.
+                    AssetIcon(name: "crown_gems_sticker", size: 30, fallbackSymbol: "crown.fill")
+                        .opacity(0.75)
+                        .padding(14)
                 }
                 .overlay(
                     RoundedRectangle(cornerRadius: 24)
@@ -167,9 +164,7 @@ struct CharactersView: View {
             if focusedSlot.isLocked {
                 Button {} label: {
                     HStack(spacing: 6) {
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 14, weight: .black))
-                            .foregroundStyle(.white)
+                        AssetIcon(name: "padlock_closed_3d", size: 18, fallbackSymbol: "lock.fill")
                         OutlinedText(text: "COMING SOON", size: 14)
                     }
                     .frame(maxWidth: .infinity)
@@ -203,9 +198,7 @@ struct CharactersView: View {
                 AssetIcon(name: "gold_sun_medal_s", size: 26, fallbackSymbol: "paintpalette.fill")
             }
             EquipChip(label: "TAG", value: "Default", equipped: false) {
-                Image(systemName: "music.note")
-                    .font(.system(size: 18, weight: .black))
-                    .foregroundStyle(GameTheme.magenta)
+                AssetIcon(name: "music_note_eighth", size: 26, fallbackSymbol: "music.note")
             }
             EquipChip(label: "TRAIL", value: "Neon Spray", equipped: false) {
                 AssetIcon(name: "spray_can_lightning", size: 26, fallbackSymbol: "paintbrush.fill")

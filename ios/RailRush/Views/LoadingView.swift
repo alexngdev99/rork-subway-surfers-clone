@@ -137,11 +137,21 @@ struct LoadingView: View {
     // MARK: Runner figure
 
     private var runnerFigure: some View {
-        Image(systemName: "figure.run")
-            .font(.system(size: 96, weight: .bold))
-            .foregroundStyle(.white)
-            .shadow(color: Color(red: 0.1, green: 0.2, blue: 0.4).opacity(0.5), radius: 0, x: 2, y: 4)
-            .offset(y: runnerBounce ? -12 : 4)
+        Group {
+            if let sneaker = UIImage(named: "red_white_sneaker_lightning") {
+                Image(uiImage: sneaker)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120, height: 120)
+                    .rotationEffect(.degrees(runnerBounce ? -8 : 4))
+            } else {
+                Image(systemName: "figure.run")
+                    .font(.system(size: 96, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+        }
+        .shadow(color: Color(red: 0.1, green: 0.2, blue: 0.4).opacity(0.5), radius: 0, x: 2, y: 4)
+        .offset(y: runnerBounce ? -12 : 4)
     }
 
     // MARK: Tip + bar

@@ -33,6 +33,16 @@ enum PowerUpType: CaseIterable {
         }
     }
 
+    /// Generated sticker art for HUD badges (falls back to `symbolName`).
+    var iconAssetName: String {
+        switch self {
+        case .magnet: return "magnet_music_notes_spark"
+        case .doubleScore: return "gold_star_2x_multiplier"
+        case .superJump: return "red_white_sneaker_lightning"
+        case .jetpack: return "twin_tank_jetpack"
+        }
+    }
+
     var duration: Float {
         switch self {
         case .magnet: return 8

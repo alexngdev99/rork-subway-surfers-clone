@@ -229,22 +229,29 @@ struct MusicCoinIcon: View {
     var size: CGFloat = 20
 
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [Color(red: 1.0, green: 0.88, blue: 0.35), GameTheme.goldDeep],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+        if let coin = UIImage(named: "gold_coin_music_note") {
+            Image(uiImage: coin)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+        } else {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(red: 1.0, green: 0.88, blue: 0.35), GameTheme.goldDeep],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
-            Circle()
-                .strokeBorder(Color(red: 0.72, green: 0.45, blue: 0.03), lineWidth: size * 0.11)
-            Image(systemName: "music.note")
-                .font(.system(size: size * 0.5, weight: .black))
-                .foregroundStyle(Color(red: 0.85, green: 0.55, blue: 0.05))
+                Circle()
+                    .strokeBorder(Color(red: 0.72, green: 0.45, blue: 0.03), lineWidth: size * 0.11)
+                Image(systemName: "music.note")
+                    .font(.system(size: size * 0.5, weight: .black))
+                    .foregroundStyle(Color(red: 0.85, green: 0.55, blue: 0.05))
+            }
+            .frame(width: size, height: size)
         }
-        .frame(width: size, height: size)
     }
 }
 

@@ -1,0 +1,12 @@
+{
+  "images": [
+    {
+      "filename": "boombox_speaker.png",
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

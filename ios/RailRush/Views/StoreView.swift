@@ -104,9 +104,9 @@ struct StoreView: View {
                     withAnimation(.spring(duration: 0.3)) { tab = item }
                 } label: {
                     VStack(spacing: 3) {
-                        Image(systemName: item.symbol)
-                            .font(.system(size: 14, weight: .black))
-                            .foregroundStyle(item == tab ? GameTheme.gold : .white.opacity(0.6))
+                        AssetIcon(name: item.iconAsset, size: 24, fallbackSymbol: item.symbol)
+                            .saturation(item == tab ? 1 : 0.45)
+                            .opacity(item == tab ? 1 : 0.8)
                         OutlinedText(text: item.label, size: 10)
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)

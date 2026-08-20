@@ -135,9 +135,7 @@ struct HomeView: View {
                 }
 
                 HStack(spacing: 6) {
-                    Image(systemName: "music.note")
-                        .font(.system(size: 12, weight: .black))
-                        .foregroundStyle(.white)
+                    AssetIcon(name: "music_note_eighth", size: 20, fallbackSymbol: "music.note")
                         .frame(width: 26, height: 26)
                         .background(
                             LinearGradient(

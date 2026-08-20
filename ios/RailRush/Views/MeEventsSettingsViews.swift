@@ -83,10 +83,10 @@ struct MeView: View {
         VStack(spacing: 8) {
             OutlinedText(text: "STATS", size: 17)
 
-            StatRow(symbol: "trophy.fill", label: "BEST SCORE", value: state.bestScore.formatted())
-            StatRow(symbol: "flag.checkered", label: "TOTAL RUNS", value: meta.totalRuns.formatted())
-            StatRow(symbol: "music.note", label: "LIFETIME NOTES", value: meta.lifetimeNotes.formatted())
-            StatRow(symbol: "star.fill", label: "SEASON LEVEL", value: "\(meta.seasonLevel)")
+            StatRow(asset: "trophy_cup_star", symbol: "trophy.fill", label: "BEST SCORE", value: state.bestScore.formatted())
+            StatRow(asset: "racing_flag_checkered", symbol: "flag.checkered", label: "TOTAL RUNS", value: meta.totalRuns.formatted())
+            StatRow(asset: "music_note_eighth", symbol: "music.note", label: "LIFETIME NOTES", value: meta.lifetimeNotes.formatted())
+            StatRow(asset: "star_sparkle_3d", symbol: "star.fill", label: "SEASON LEVEL", value: "\(meta.seasonLevel)")
         }
         .padding(14)
         .background(metaPanelBackground)
@@ -97,10 +97,10 @@ struct MeView: View {
             OutlinedText(text: "ACHIEVEMENTS", size: 17)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 2), spacing: 8) {
-                AchievementChip(title: "FIRST RUN", symbol: "figure.run", unlocked: meta.totalRuns >= 1)
-                AchievementChip(title: "1K NOTES", symbol: "music.note.list", unlocked: meta.lifetimeNotes >= 1000)
-                AchievementChip(title: "SCORE 5,000", symbol: "star.circle.fill", unlocked: state.bestScore >= 5000)
-                AchievementChip(title: "SEASON 3", symbol: "crown.fill", unlocked: meta.seasonLevel >= 3)
+                AchievementChip(title: "FIRST RUN", asset: "red_white_sneaker_lightning", symbol: "figure.run", unlocked: meta.totalRuns >= 1)
+                AchievementChip(title: "1K NOTES", asset: "music_note_eighth", symbol: "music.note.list", unlocked: meta.lifetimeNotes >= 1000)
+                AchievementChip(title: "SCORE 5,000", asset: "medal_coin_star_sticker", symbol: "star.circle.fill", unlocked: state.bestScore >= 5000)
+                AchievementChip(title: "SEASON 3", asset: "crown_gems_sticker", symbol: "crown.fill", unlocked: meta.seasonLevel >= 3)
             }
         }
         .padding(14)
@@ -109,15 +109,14 @@ struct MeView: View {
 }
 
 private struct StatRow: View {
+    let asset: String
     let symbol: String
     let label: String
     let value: String
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: symbol)
-                .font(.system(size: 16, weight: .black))
-                .foregroundStyle(GameTheme.gold)
+            AssetIcon(name: asset, size: 24, fallbackSymbol: symbol)
                 .frame(width: 26)
             Text(label)
                 .font(.system(size: 13, weight: .black, design: .rounded))
@@ -136,14 +135,19 @@ private struct StatRow: View {
 
 private struct AchievementChip: View {
     let title: String
+    let asset: String
     let symbol: String
     let unlocked: Bool
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: unlocked ? symbol : "lock.fill")
-                .font(.system(size: 16, weight: .black))
-                .foregroundStyle(unlocked ? GameTheme.gold : .white.opacity(0.4))
+            AssetIcon(
+                name: unlocked ? asset : "padlock_closed_3d",
+                size: 22,
+                fallbackSymbol: unlocked ? symbol : "lock.fill"
+            )
+            .saturation(unlocked ? 1 : 0.25)
+            .opacity(unlocked ? 1 : 0.65)
             OutlinedText(text: title, size: 12)
                 .opacity(unlocked ? 1 : 0.55)
             Spacer()
@@ -205,9 +209,7 @@ struct EventsView: View {
                         }
 
                         HStack(spacing: 6) {
-                            Image(systemName: "stopwatch.fill")
-                                .font(.system(size: 13, weight: .black))
-                                .foregroundStyle(GameTheme.gold)
+                            AssetIcon(name: "stopwatch_gold_purple", size: 18, fallbackSymbol: "stopwatch.fill")
                             OutlinedText(text: "Resets \(Self.weekEndText())", size: 13)
                         }
                         .padding(.horizontal, 14)
@@ -273,9 +275,9 @@ private struct EventTierRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "rosette")
-                .font(.system(size: 24, weight: .black))
-                .foregroundStyle(reached ? GameTheme.gold : .white.opacity(0.4))
+            AssetIcon(name: "award_medal_ribbon", size: 36, fallbackSymbol: "rosette")
+                .saturation(reached ? 1 : 0.2)
+                .opacity(reached ? 1 : 0.55)
                 .frame(width: 40)
 
             VStack(alignment: .leading, spacing: 5) {
@@ -343,6 +345,7 @@ struct SettingsView: View {
                         }
 
                         SettingToggleRow(
+                            asset: "music_note_eighth",
                             symbol: "music.note",
                             symbolColors: [GameTheme.magenta, GameTheme.goldDeep],
                             title: "MUSIC",
@@ -353,6 +356,7 @@ struct SettingsView: View {
                         SoundtrackPanel(meta: meta)
 
                         SettingToggleRow(
+                            asset: "speaker_sound_waves_sticker",
                             symbol: "speaker.wave.2.fill",
                             symbolColors: [GameTheme.gold, GameTheme.goldDeep],
                             title: "SOUND EFFECTS",
@@ -361,6 +365,7 @@ struct SettingsView: View {
                         )
 
                         VolumeSliderRow(
+                            asset: "speaker_sound_waves_sticker",
                             symbol: "speaker.wave.3.fill",
                             symbolColors: [GameTheme.gold, GameTheme.goldDeep],
                             title: "SFX VOLUME",
@@ -368,6 +373,7 @@ struct SettingsView: View {
                             enabled: meta.sfxOn
                         )
                         SettingToggleRow(
+                            asset: "smartphone_vibration_sticker",
                             symbol: "iphone.radiowaves.left.and.right",
                             symbolColors: [GameTheme.gold, GameTheme.magenta],
                             title: "VIBRATION",
@@ -375,6 +381,7 @@ struct SettingsView: View {
                             isOn: $meta.hapticsOn
                         )
                         SettingToggleRow(
+                            asset: "battery_lightning_sticker",
                             symbol: "battery.100percent.bolt",
                             symbolColors: [Color(red: 0.45, green: 0.85, blue: 0.30), Color(red: 0.20, green: 0.60, blue: 0.15)],
                             title: "BATTERY SAVER",
@@ -383,6 +390,7 @@ struct SettingsView: View {
                         )
 
                         SettingLinkRow(
+                            asset: "globe_cartoon_sticker",
                             symbol: "globe",
                             symbolColors: [GameTheme.teal, Color(red: 0.10, green: 0.55, blue: 0.55)],
                             title: "LANGUAGE",
@@ -397,6 +405,7 @@ struct SettingsView: View {
 
                         Button { infoSheet = .privacy } label: {
                             SettingLinkRow(
+                                asset: "shield_checkmark_sticker",
                                 symbol: "shield.lefthalf.filled",
                                 symbolColors: [GameTheme.gold, GameTheme.goldDeep],
                                 title: "PRIVACY POLICY",
@@ -409,6 +418,7 @@ struct SettingsView: View {
 
                         Button { infoSheet = .support } label: {
                             SettingLinkRow(
+                                asset: "headphones_purple_sticker",
                                 symbol: "headphones",
                                 symbolColors: [GameTheme.magenta, Color(red: 0.60, green: 0.12, blue: 0.45)],
                                 title: "SUPPORT",
@@ -463,9 +473,7 @@ private struct SoundtrackPanel: View {
     var body: some View {
         VStack(spacing: 12) {
             HStack(spacing: 8) {
-                Image(systemName: "radio.fill")
-                    .font(.system(size: 13, weight: .black))
-                    .foregroundStyle(GameTheme.magenta)
+                AssetIcon(name: "boombox_speaker", size: 20, fallbackSymbol: "radio.fill")
                 Text("FESTIVAL SOUNDTRACK")
                     .font(.system(size: 12, weight: .black, design: .rounded))
                     .foregroundStyle(Color(red: 0.72, green: 0.60, blue: 0.95))
@@ -571,6 +579,7 @@ private struct EqualizerBars: View {
 
 /// Standalone volume row styled like the setting rows (for SFX).
 private struct VolumeSliderRow: View {
+    var asset: String? = nil
     let symbol: String
     let symbolColors: [Color]
     let title: String
@@ -579,7 +588,7 @@ private struct VolumeSliderRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            SettingIconTile(symbol: symbol, colors: symbolColors)
+            SettingIconTile(asset: asset, symbol: symbol, colors: symbolColors)
 
             VStack(alignment: .leading, spacing: 6) {
                 OutlinedText(text: title, size: 16)
@@ -630,6 +639,7 @@ private var settingRowBackground: some View {
 }
 
 private struct SettingIconTile: View {
+    var asset: String? = nil
     let symbol: String
     let colors: [Color]
 
@@ -641,17 +651,25 @@ private struct SettingIconTile: View {
                     RoundedRectangle(cornerRadius: 11)
                         .strokeBorder(.white.opacity(0.15), lineWidth: 1.5)
                 )
-            Image(systemName: symbol)
-                .font(.system(size: 20, weight: .black))
-                .foregroundStyle(
-                    LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom)
-                )
+            if let asset, let image = UIImage(named: asset) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 32, height: 32)
+            } else {
+                Image(systemName: symbol)
+                    .font(.system(size: 20, weight: .black))
+                    .foregroundStyle(
+                        LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom)
+                    )
+            }
         }
         .frame(width: 46, height: 46)
     }
 }
 
 private struct SettingToggleRow: View {
+    var asset: String? = nil
     let symbol: String
     let symbolColors: [Color]
     let title: String
@@ -660,7 +678,7 @@ private struct SettingToggleRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            SettingIconTile(symbol: symbol, colors: symbolColors)
+            SettingIconTile(asset: asset, symbol: symbol, colors: symbolColors)
 
             VStack(alignment: .leading, spacing: 2) {
                 OutlinedText(text: title, size: 16)
@@ -681,6 +699,7 @@ private struct SettingToggleRow: View {
 }
 
 private struct SettingLinkRow<Trailing: View>: View {
+    var asset: String? = nil
     let symbol: String
     let symbolColors: [Color]
     let title: String
@@ -689,7 +708,7 @@ private struct SettingLinkRow<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            SettingIconTile(symbol: symbol, colors: symbolColors)
+            SettingIconTile(asset: asset, symbol: symbol, colors: symbolColors)
 
             VStack(alignment: .leading, spacing: 2) {
                 OutlinedText(text: title, size: 16)
