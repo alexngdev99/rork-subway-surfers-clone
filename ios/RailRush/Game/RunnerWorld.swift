@@ -163,6 +163,9 @@ final class RunnerWorld {
     private var crashHandled = false
     private var shakeTimer: Float = 0
     private var coinSpinAngle: Float = 0
+    /// Seconds left to chain the next note pickup before the combo breaks.
+    private var comboTimer: Float = 0
+    private static let comboWindow: Float = 2.0
 
     var updateSubscription: EventSubscription?
 
@@ -745,6 +748,7 @@ final class RunnerWorld {
         inspectorTargetZ = 3.4
         crashHandled = false
         shakeTimer = 0
+        comboTimer = 0
         clearBursts()
 
         playerContainer.position = [0, 0, 0]
@@ -908,6 +912,16 @@ final class RunnerWorld {
             }
         }
         worldSpeed = speed
+
+        // Combo window: drain, then break the chain when time runs out.
+        if comboTimer > 0 {
+            comboTimer -= dt
+            state.comboProgress = Double(max(0, comboTimer / Self.comboWindow))
+            if comboTimer <= 0 {
+                state.comboCount = 0
+                state.comboProgress = 0
+            }
+        }
 
         updatePlayer(dt: dt)
         scrollWorld(dt: dt)
@@ -1192,6 +1206,7 @@ final class RunnerWorld {
                 coin.isActive = false
                 coin.entity.isEnabled = false
                 state.coins += 1
+                registerComboPickup()
                 spawnPickupBurst(
                     at: position,
                     color: UIColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 0.95),
@@ -1225,6 +1240,25 @@ final class RunnerWorld {
                 }
             }
         }
+    }
+
+    /// Extends the combo chain on every note pickup; milestone chains get a
+    /// stronger haptic thump so ramping streaks feel physical.
+    private func registerComboPickup() {
+        comboTimer = Self.comboWindow
+        state.comboCount += 1
+        state.comboProgress = 1
+        state.bestComboThisRun = max(state.bestComboThisRun, state.comboCount)
+        if state.comboCount % 10 == 0 {
+            haptics.powerUp()
+        }
+    }
+
+    /// Breaks the current note combo (stumble or crash).
+    private func breakCombo() {
+        comboTimer = 0
+        state.comboCount = 0
+        state.comboProgress = 0
     }
 
     /// Full spray meter: short invincible surge with magnet + speed boost.
@@ -1465,6 +1499,7 @@ final class RunnerWorld {
         node.isActive = false
         node.entity.isEnabled = false
         speedPenaltyTimer = 1.1
+        breakCombo()
         inspectorGraceTimer = WorldConfig.inspectorGraceDuration
         inspectorTargetZ = 2.6
         state.inspectorClose = true
@@ -1476,6 +1511,7 @@ final class RunnerWorld {
     private func crash(reason: RunEndReason) {
         crashHandled = true
         shakeTimer = 0.6
+        breakCombo()
         resetJumpFlip()
         jetpackVisualsActive = false
         jetpackProp?.isEnabled = false

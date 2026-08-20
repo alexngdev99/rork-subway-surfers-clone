@@ -18,6 +18,12 @@ final class GameState {
     var powerUpProgress: Double = 0
     var inspectorClose = false
 
+    // Combo: consecutive note pickups within a short window.
+    var comboCount = 0
+    /// 0...1 time remaining in the current combo window, drives the drain bar.
+    var comboProgress: Double = 0
+    var bestComboThisRun = 0
+
     // Spray boost meter (mockup HUD): fills to 8, then Paint Rush fires.
     static let sprayMeterMax = 8
     var sprayMeter = 0
@@ -64,6 +70,9 @@ final class GameState {
         activePowerUp = nil
         powerUpProgress = 0
         inspectorClose = false
+        comboCount = 0
+        comboProgress = 0
+        bestComboThisRun = 0
         sprayMeter = 0
         paintRushActive = false
         paintRushProgress = 0

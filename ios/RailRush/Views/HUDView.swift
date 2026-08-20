@@ -56,6 +56,12 @@ struct HUDView: View {
                 }
                 .padding(.horizontal, 16)
 
+                if state.comboCount >= 3 {
+                    ComboBanner(count: state.comboCount, progress: state.comboProgress)
+                        .padding(.top, 10)
+                        .transition(.scale(scale: 0.4).combined(with: .opacity))
+                }
+
                 if let powerUp = state.activePowerUp {
                     PowerUpBadge(type: powerUp, progress: state.powerUpProgress)
                         .padding(.top, 10)
@@ -94,6 +100,7 @@ struct HUDView: View {
         }
         .animation(.spring(duration: 0.35), value: state.activePowerUp)
         .animation(.spring(duration: 0.35), value: state.inspectorClose)
+        .animation(.spring(duration: 0.3, bounce: 0.45), value: state.comboCount >= 3)
         .animation(.spring(duration: 0.3), value: state.multiplier)
         .animation(.spring(duration: 0.3), value: state.paintRushActive)
     }
@@ -206,6 +213,124 @@ private struct PaintRushOverlay: View {
         .onAppear {
             withAnimation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) {
                 pulse = true
+            }
+        }
+    }
+}
+
+/// Escalating "COMBO xN" callout for consecutive note pickups — pops on every
+/// pickup, climbs through color tiers, and drains a thin timer bar underneath.
+private struct ComboBanner: View {
+    let count: Int
+    let progress: Double
+
+    @State private var pop = false
+    @State private var glowPulse = false
+
+    private enum Tier {
+        case nice, great, awesome, onFire
+
+        init(count: Int) {
+            switch count {
+            case ..<10: self = .nice
+            case ..<20: self = .great
+            case ..<30: self = .awesome
+            default: self = .onFire
+            }
+        }
+
+        var label: String? {
+            switch self {
+            case .nice: return nil
+            case .great: return "GREAT!"
+            case .awesome: return "AWESOME!"
+            case .onFire: return "ON FIRE!"
+            }
+        }
+
+        var colors: [Color] {
+            switch self {
+            case .nice: return [Color(red: 1.0, green: 0.88, blue: 0.35), GameTheme.goldDeep]
+            case .great: return [GameTheme.teal, Color(red: 0.05, green: 0.55, blue: 0.52)]
+            case .awesome: return [GameTheme.magenta, Color(red: 0.72, green: 0.35, blue: 0.98)]
+            case .onFire: return [Color(red: 1.0, green: 0.55, blue: 0.15), GameTheme.magenta]
+            }
+        }
+
+        var glow: Color {
+            switch self {
+            case .nice: return GameTheme.gold
+            case .great: return GameTheme.teal
+            case .awesome: return GameTheme.magenta
+            case .onFire: return Color(red: 1.0, green: 0.45, blue: 0.1)
+            }
+        }
+    }
+
+    private var tier: Tier { Tier(count: count) }
+
+    var body: some View {
+        VStack(spacing: 5) {
+            HStack(spacing: 7) {
+                MusicCoinIcon(size: 22)
+                    .rotationEffect(.degrees(pop ? -14 : 0))
+
+                OutlinedText(
+                    text: "COMBO x\(count)",
+                    size: 22,
+                    fill: AnyShapeStyle(
+                        LinearGradient(colors: tier.colors, startPoint: .top, endPoint: .bottom)
+                    )
+                )
+
+                if let label = tier.label {
+                    OutlinedText(
+                        text: label,
+                        size: 15,
+                        fill: AnyShapeStyle(Color.white)
+                    )
+                    .rotationEffect(.degrees(pop ? 6 : -2))
+                    .transition(.scale(scale: 0.3).combined(with: .opacity))
+                }
+            }
+            .scaleEffect(pop ? 1.22 : 1.0)
+
+            // Combo window drain bar — grab the next note before it empties!
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.black.opacity(0.4))
+                    Capsule()
+                        .fill(
+                            LinearGradient(colors: tier.colors, startPoint: .leading, endPoint: .trailing)
+                        )
+                        .frame(width: max(6, geo.size.width * progress))
+                }
+            }
+            .frame(width: 130, height: 5)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(GameTheme.chip.opacity(0.85), in: RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(tier.glow.opacity(tier == .onFire ? 0.95 : 0.55), lineWidth: tier == .onFire ? 2.5 : 1.5)
+        )
+        .shadow(
+            color: tier.glow.opacity(tier == .onFire ? (glowPulse ? 0.95 : 0.5) : 0.35),
+            radius: tier == .onFire ? (glowPulse ? 18 : 9) : 8
+        )
+        .allowsHitTesting(false)
+        .animation(.spring(duration: 0.25, bounce: 0.4), value: count)
+        .onChange(of: count) { _, _ in
+            pop = true
+            withAnimation(.spring(duration: 0.28, bounce: 0.55).delay(0.06)) {
+                pop = false
+            }
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.45).repeatForever(autoreverses: true)) {
+                glowPulse = true
             }
         }
     }
