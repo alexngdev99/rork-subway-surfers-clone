@@ -25,10 +25,11 @@ final class ScoreStore {
         set { defaults.set(newValue, forKey: Keys.selectedCharacter) }
     }
 
-    /// Records a finished run and returns whether it set a new best score.
+    /// Records a finished run's score and returns whether it set a new best.
+    /// The note wallet now lives in MetaStore; `totalCoins` remains only as
+    /// the legacy migration source.
     @discardableResult
-    func recordRun(score: Int, coins: Int) -> Bool {
-        totalCoins += coins
+    func recordBest(score: Int) -> Bool {
         if score > bestScore {
             bestScore = score
             return true

@@ -584,6 +584,7 @@ enum TrackBuilder {
         ))
         confetti.components.set(particles)
         confetti.position = [0, 10.5, -30]
+        confetti.name = "festival_confetti"
         backdrop.addChild(confetti)
 
         // Far ground filler so gaps between buildings don't show sky

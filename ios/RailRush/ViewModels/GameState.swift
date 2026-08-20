@@ -18,9 +18,20 @@ final class GameState {
     var powerUpProgress: Double = 0
     var inspectorClose = false
 
+    // Spray boost meter (mockup HUD): fills to 8, then Paint Rush fires.
+    static let sprayMeterMax = 8
+    var sprayMeter = 0
+    var paintRushActive = false
+    var paintRushProgress: Double = 0
+
+    // Per-run mission counters
+    var runJumps = 0
+    var runSlides = 0
+    var runPowerUps = 0
+    var runSprays = 0
+
     // Persistent values
     var bestScore: Int
-    var totalCoins: Int
     var selectedCharacterID: String
 
     // Last run results
@@ -29,12 +40,15 @@ final class GameState {
     var lastRunWasBest = false
     var endReason: RunEndReason = .crashedIntoTrain
 
+    /// Meta-game hub: wallet, missions, season, store, settings.
+    let meta: MetaState
+
     private let store = ScoreStore()
 
     init() {
         bestScore = store.bestScore
-        totalCoins = store.totalCoins
         selectedCharacterID = store.selectedCharacterID
+        meta = MetaState(legacyCoins: store.totalCoins)
     }
 
     /// Persists the chosen playable character between launches.
@@ -50,6 +64,13 @@ final class GameState {
         activePowerUp = nil
         powerUpProgress = 0
         inspectorClose = false
+        sprayMeter = 0
+        paintRushActive = false
+        paintRushProgress = 0
+        runJumps = 0
+        runSlides = 0
+        runPowerUps = 0
+        runSprays = 0
         isPaused = false
         phase = .running
     }
@@ -58,9 +79,21 @@ final class GameState {
         endReason = reason
         lastRunScore = score
         lastRunCoins = coins
-        lastRunWasBest = store.recordRun(score: score, coins: coins)
+        lastRunWasBest = store.recordBest(score: score)
         bestScore = store.bestScore
-        totalCoins = store.totalCoins
+        paintRushActive = false
+        paintRushProgress = 0
+
+        // Feed the meta layer: wallet, missions, season, weekly event.
+        meta.applyRun(
+            score: score,
+            notesCollected: coins,
+            spraysCollected: runSprays,
+            jumps: runJumps,
+            slides: runSlides,
+            powerUps: runPowerUps
+        )
+
         phase = .gameOver
     }
 }

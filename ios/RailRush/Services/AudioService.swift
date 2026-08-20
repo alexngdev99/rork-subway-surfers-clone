@@ -19,10 +19,14 @@ final class AudioService {
     private var jetpackPlayer: AVAudioPlayer?
     private var isJetpackLoopActive = false
 
-    var isMuted = false {
+    /// Settings toggles: music and SFX are muted independently.
+    var musicEnabled = true {
+        didSet { musicPlayer?.volume = musicEnabled ? musicVolume : 0 }
+    }
+
+    var sfxEnabled = true {
         didSet {
-            musicPlayer?.volume = isMuted ? 0 : musicVolume
-            jetpackPlayer?.volume = isMuted ? 0 : jetpackVolume
+            jetpackPlayer?.volume = sfxEnabled ? jetpackVolume : 0
         }
     }
 
@@ -69,7 +73,7 @@ final class AudioService {
             musicPlayer = try? AVAudioPlayer(contentsOf: url)
             musicPlayer?.numberOfLoops = -1
         }
-        musicPlayer?.volume = isMuted ? 0 : musicVolume
+        musicPlayer?.volume = musicEnabled ? musicVolume : 0
         musicPlayer?.currentTime = 0
         musicPlayer?.play()
     }
@@ -89,7 +93,7 @@ final class AudioService {
         }
         guard let jetpackPlayer else { return }
         isJetpackLoopActive = true
-        jetpackPlayer.volume = isMuted ? 0 : jetpackVolume
+        jetpackPlayer.volume = sfxEnabled ? jetpackVolume : 0
         jetpackPlayer.currentTime = 0
         jetpackPlayer.play()
     }
@@ -103,7 +107,7 @@ final class AudioService {
 
     func play(_ effect: SoundEffect) {
         let name = effect.rawValue
-        guard !isMuted, let players = sfxPlayers[name], !players.isEmpty else { return }
+        guard sfxEnabled, let players = sfxPlayers[name], !players.isEmpty else { return }
         let index = (sfxIndex[name] ?? 0) % players.count
         sfxIndex[name] = index + 1
         let player = players[index]

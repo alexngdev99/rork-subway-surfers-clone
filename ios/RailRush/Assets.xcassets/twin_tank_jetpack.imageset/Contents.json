@@ -1,0 +1,12 @@
+{
+  "images": [
+    {
+      "filename": "twin_tank_jetpack.png",
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

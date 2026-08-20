@@ -120,6 +120,8 @@ final class RunnerWorld {
     /// variants; the pool cycles across them for visual variety.
     private var trainTemplates: [Entity] = []
     private var coinPool: [CoinNode] = []
+    /// Collectible spray cans that charge the Paint Rush meter.
+    private var sprayPool: [CoinNode] = []
     private var powerUpPools: [PowerUpType: [PowerUpNode]] = [:]
     private var burstPool: [BurstNode] = []
 
@@ -140,6 +142,11 @@ final class RunnerWorld {
     private var distanceSinceSpawn: Float = 0
     private var nextSpawnGap: Float = 16
     private var powerUpTimer: Float = 0
+    /// Total duration of the currently active power-up (upgrade-scaled).
+    private var powerUpDurationTotal: Float = 1
+    /// Remaining seconds of the Paint Rush invincibility burst.
+    private var paintRushTimer: Float = 0
+    private static let paintRushDuration: Float = 6
     private var jetpackActive = false
     /// Keeps the hang pose + prop visible during the descent after the
     /// jetpack expires, until the runner touches the ground.
@@ -559,6 +566,24 @@ final class RunnerWorld {
             powerUpPools[type] = pool
         }
 
+        // Spray can collectibles: reuse the spray paint model, smaller scale.
+        var sprayTemplate: Entity?
+        if let sprayResource = GeneratedAssets.magnetPickupModel {
+            sprayTemplate = try? await Entity(named: sprayResource)
+        }
+        for _ in 0..<8 {
+            let entity: Entity
+            if let sprayTemplate {
+                entity = Self.makePickupEntity(from: sprayTemplate, targetHeight: 0.55)
+            } else {
+                entity = TrackBuilder.makeCoin()
+            }
+            let node = CoinNode(entity: entity)
+            node.entity.isEnabled = false
+            spawned.addChild(node.entity)
+            sprayPool.append(node)
+        }
+
         // Pickup burst pool shared by coins and power-ups.
         for _ in 0..<10 {
             let node = BurstNode(entity: Self.makePickupBurst())
@@ -566,6 +591,8 @@ final class RunnerWorld {
             spawned.addChild(node.entity)
             burstPool.append(node)
         }
+
+        applyBatterySaver()
     }
 
     /// Bundled resource name of the floating pickup model for a power-up type.
@@ -655,7 +682,7 @@ final class RunnerWorld {
             node.isActive = false
             node.entity.isEnabled = false
         }
-        for coin in coinPool {
+        for coin in coinPool + sprayPool {
             coin.isActive = false
             coin.entity.isEnabled = false
         }
@@ -680,6 +707,8 @@ final class RunnerWorld {
         distanceSinceSpawn = 0
         nextSpawnGap = 14
         powerUpTimer = 0
+        powerUpDurationTotal = 1
+        paintRushTimer = 0
         jetpackActive = false
         jetpackVisualsActive = false
         jetpackProp?.isEnabled = false
@@ -749,7 +778,9 @@ final class RunnerWorld {
         isJumping = true
         isSliding = false
         slideTimer = 0
-        verticalVelocity = WorldConfig.jumpVelocity
+        // Super Sneakers upgrade: higher jump per level.
+        verticalVelocity = WorldConfig.jumpVelocity * state.meta.sneakerJumpBoost
+        state.runJumps += 1
         haptics.jump()
         audio.play(.jump)
         runnerAnimator?.playOnce(activeCharacter.jump, restoreAfter: .milliseconds(750))
@@ -764,6 +795,7 @@ final class RunnerWorld {
         }
         isSliding = true
         slideTimer = WorldConfig.slideDuration
+        state.runSlides += 1
         haptics.laneChange()
         runnerAnimator?.playOnce(activeCharacter.slide, restoreAfter: .milliseconds(Int(WorldConfig.slideDuration * 1000)))
     }
@@ -819,6 +851,17 @@ final class RunnerWorld {
         if speedPenaltyTimer > 0 {
             speedPenaltyTimer -= dt
             speed *= 0.62
+        }
+
+        // Paint Rush: invincible surge with a speed kick.
+        if paintRushTimer > 0 {
+            paintRushTimer -= dt
+            speed *= 1.18
+            state.paintRushProgress = Double(max(0, paintRushTimer / Self.paintRushDuration))
+            if paintRushTimer <= 0 {
+                state.paintRushActive = false
+                state.paintRushProgress = 0
+            }
         }
         worldSpeed = speed
 
@@ -933,6 +976,16 @@ final class RunnerWorld {
             }
         }
 
+        for spray in sprayPool where spray.isActive {
+            spray.entity.position.z += dz
+            spray.entity.position.y = 1.0 + sin(coinSpinAngle * 1.8) * 0.12
+            spray.entity.orientation = simd_quatf(angle: coinSpinAngle * 1.3, axis: [0, 1, 0])
+            if spray.entity.position.z > WorldConfig.despawnZ {
+                spray.isActive = false
+                spray.entity.isEnabled = false
+            }
+        }
+
         for pool in powerUpPools.values {
             for node in pool where node.isActive {
                 node.entity.position.z += dz
@@ -968,6 +1021,18 @@ final class RunnerWorld {
         if Float.random(in: 0...1) < 0.14, state.activePowerUp == nil {
             spawnPowerUp(z: WorldConfig.spawnZ - 8)
         }
+
+        // Spray cans trickle in to charge the Paint Rush meter.
+        if Float.random(in: 0...1) < 0.22 {
+            spawnSpray(z: WorldConfig.spawnZ - 4)
+        }
+    }
+
+    private func spawnSpray(z: Float) {
+        guard let node = sprayPool.first(where: { !$0.isActive }) else { return }
+        node.entity.position = [WorldConfig.laneXs[Int.random(in: 0...2)], 1.0, z]
+        node.isActive = true
+        node.entity.isEnabled = true
     }
 
     private func spawnTrainRow() {
@@ -1057,7 +1122,8 @@ final class RunnerWorld {
     // MARK: Collection
 
     private func updateCoins(dt: Float) {
-        let magnetActive = state.activePowerUp == .magnet
+        // Paint Rush doubles as a note magnet.
+        let magnetActive = state.activePowerUp == .magnet || paintRushTimer > 0
         let playerCenterY = playerY + (isSliding ? 0.5 : 0.9)
 
         for coin in coinPool where coin.isActive {
@@ -1091,6 +1157,40 @@ final class RunnerWorld {
                 haptics.coin()
             }
         }
+
+        // Spray can pickups: charge the meter; a full bar fires Paint Rush.
+        for spray in sprayPool where spray.isActive {
+            let position = spray.entity.position
+            if abs(position.z) < 0.9,
+               abs(position.x - playerX) < 0.95,
+               abs(position.y - playerCenterY) < 1.3 {
+                spray.isActive = false
+                spray.entity.isEnabled = false
+                state.runSprays += 1
+                state.sprayMeter = min(GameState.sprayMeterMax, state.sprayMeter + 1)
+                spawnPickupBurst(
+                    at: position,
+                    color: UIColor(red: 0.72, green: 0.35, blue: 0.98, alpha: 0.95),
+                    accent: UIColor(red: 0.16, green: 0.82, blue: 0.75, alpha: 0.95)
+                )
+                audio.play(.coin)
+                haptics.coin()
+
+                if state.sprayMeter >= GameState.sprayMeterMax, paintRushTimer <= 0 {
+                    activatePaintRush()
+                }
+            }
+        }
+    }
+
+    /// Full spray meter: short invincible surge with magnet + speed boost.
+    private func activatePaintRush() {
+        paintRushTimer = Self.paintRushDuration
+        state.sprayMeter = 0
+        state.paintRushActive = true
+        state.paintRushProgress = 1
+        audio.play(.powerUp)
+        haptics.powerUp()
     }
 
     private func updatePowerUps(dt: Float) {
@@ -1115,7 +1215,7 @@ final class RunnerWorld {
         // Active power-up countdown
         if let active = state.activePowerUp {
             powerUpTimer -= dt
-            state.powerUpProgress = Double(max(0, powerUpTimer / active.duration))
+            state.powerUpProgress = Double(max(0, powerUpTimer / max(0.001, powerUpDurationTotal)))
             if powerUpTimer <= 0 {
                 if active == .doubleScore { state.multiplier = 1 }
                 if active == .jetpack {
@@ -1131,8 +1231,11 @@ final class RunnerWorld {
 
     private func activatePowerUp(_ type: PowerUpType) {
         state.activePowerUp = type
-        powerUpTimer = type.duration
+        // Upgrade levels stretch the power-up duration.
+        powerUpDurationTotal = type.duration * state.meta.durationScale(for: type)
+        powerUpTimer = powerUpDurationTotal
         state.powerUpProgress = 1
+        state.runPowerUps += 1
         audio.play(.powerUp)
         haptics.powerUp()
 
@@ -1161,8 +1264,16 @@ final class RunnerWorld {
         }
     }
 
+    /// Toggles heavy ambience (festival confetti) per the Battery Saver setting.
+    func applyBatterySaver() {
+        let saver = state.meta.batterySaver
+        environment.findEntity(named: "festival_confetti")?.isEnabled = !saver
+    }
+
     /// Fires a short radial sparkle burst at a pickup's world position.
     private func spawnPickupBurst(at position: SIMD3<Float>, color: UIColor, accent: UIColor, scale: Float = 1) {
+        // Battery saver skips decorative pickup bursts.
+        guard !state.meta.batterySaver else { return }
         guard let node = burstPool.first(where: { $0.lifeTimer <= 0 }) ?? burstPool.first else { return }
         node.entity.position = position
         node.entity.isEnabled = true
@@ -1272,8 +1383,8 @@ final class RunnerWorld {
 
     private func checkCollisions() {
         guard !crashHandled else { return }
-        // Jetpack soars over everything
-        guard !jetpackActive, playerY < 2.4 else { return }
+        // Jetpack soars over everything; Paint Rush plows through everything.
+        guard !jetpackActive, playerY < 2.4, paintRushTimer <= 0 else { return }
 
         let playerHalfWidth: Float = 0.42
         let playerHeight: Float = isSliding ? 0.95 : 1.75

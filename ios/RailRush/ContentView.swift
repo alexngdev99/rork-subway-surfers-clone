@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// Root view: the 3D world stays mounted while overlays switch with the phase.
+/// Meta screens (missions / store / characters / ...) layer over the home hub.
 struct ContentView: View {
     @State private var gameState = GameState()
     @State private var world: RunnerWorld?
@@ -19,10 +20,11 @@ struct ContentView: View {
                 case .home:
                     HomeView(
                         state: gameState,
-                        onSelectCharacter: { world.selectCharacter($0) },
                         onRun: { world.startRun() }
                     )
                     .transition(.opacity)
+
+                    metaOverlay(world: world)
                 case .running:
                     HUDView(state: gameState) {
                         world.togglePause()
@@ -49,10 +51,11 @@ struct ContentView: View {
             if gameState.phase == .loading {
                 LoadingView(progress: gameState.loadingProgress)
                     .transition(.opacity)
-                    .zIndex(1)
+                    .zIndex(2)
             }
         }
         .animation(.easeInOut(duration: 0.45), value: gameState.phase)
+        .animation(.spring(duration: 0.4), value: gameState.meta.route)
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
         .onAppear {
@@ -60,6 +63,52 @@ struct ContentView: View {
                 world = RunnerWorld(state: gameState)
             }
         }
+        .onChange(of: gameState.meta.batterySaver) { _, _ in
+            world?.applyBatterySaver()
+        }
+    }
+
+    /// Full-screen meta destinations and reward dialogs over the home hub.
+    @ViewBuilder
+    private func metaOverlay(world: RunnerWorld) -> some View {
+        let meta = gameState.meta
+
+        if let route = meta.route {
+            Group {
+                switch route {
+                case .missions:
+                    MissionsView(meta: meta)
+                case .store(let tab):
+                    StoreView(meta: meta, initialTab: tab)
+                case .characters:
+                    CharactersView(
+                        meta: meta,
+                        selectedID: gameState.selectedCharacterID,
+                        onSelect: { world.selectCharacter($0) }
+                    )
+                case .me:
+                    MeView(state: gameState, meta: meta)
+                case .events:
+                    EventsView(meta: meta)
+                case .settings:
+                    SettingsView(meta: meta)
+                case .dailyLogin:
+                    DailyLoginView(meta: meta) { meta.route = nil }
+                case .freeRewards:
+                    FreeRewardsView(meta: meta) { meta.route = nil }
+                }
+            }
+            .zIndex(1)
+            .transition(
+                isDialogRoute(route)
+                    ? AnyTransition.opacity
+                    : AnyTransition.move(edge: .bottom).combined(with: .opacity)
+            )
+        }
+    }
+
+    private func isDialogRoute(_ route: MetaRoute) -> Bool {
+        route == .dailyLogin || route == .freeRewards
     }
 }
 
