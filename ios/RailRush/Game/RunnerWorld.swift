@@ -114,6 +114,11 @@ final class RunnerWorld {
     private var jetpackFlames: [Entity] = []
     /// Soft smoke trail streaming behind the jetpack while thrusting.
     private var jetpackSmoke: Entity?
+    /// Additive neon streak emitter behind the runner selling the sense of speed.
+    private var speedTrail: Entity?
+    /// Last applied trail intensity tier — avoids rebuilding the particle
+    /// component every frame; -1 forces a refresh on the next run frame.
+    private var speedTrailTier: Int = -1
 
     // Pools
     private var trainPool: [ObstacleNode] = []
@@ -209,6 +214,7 @@ final class RunnerWorld {
         state.loadingProgress = 0.36
 
         await buildActors()
+        buildSpeedTrail()
         state.loadingProgress = 0.78
         await buildPools()
         state.loadingProgress = 0.97
@@ -426,6 +432,69 @@ final class RunnerWorld {
         )
         smoke.components.set(particles)
         return smoke
+    }
+
+    /// Mounts the speed-line trail on the active runner. Hidden outside runs;
+    /// `updateSpeedTrail` scales its emission with the sprint speed.
+    private func buildSpeedTrail() {
+        let trail = Self.makeSpeedTrail()
+        // Hip height, just behind the back, so streaks whip off the body.
+        trail.position = [0, 0.62, 0.3]
+        trail.isEnabled = false
+        playerContainer.addChild(trail)
+        speedTrail = trail
+    }
+
+    /// Additive teal/magenta wind streaks streaming backward (+Z) off the
+    /// runner. The player stays near z = 0 while the world scrolls, so pushing
+    /// particles toward the camera reads as motion trails left behind.
+    private static func makeSpeedTrail() -> Entity {
+        let trail = Entity()
+        var particles = ParticleEmitterComponent()
+        particles.emitterShape = .box
+        particles.emitterShapeSize = [0.3, 0.55, 0.04]
+        particles.birthLocation = .volume
+        particles.speed = 1.4
+        particles.speedVariation = 0.8
+        particles.mainEmitter.birthRate = 140
+        particles.mainEmitter.lifeSpan = 0.34
+        particles.mainEmitter.lifeSpanVariation = 0.1
+        particles.mainEmitter.size = 0.042
+        particles.mainEmitter.sizeVariation = 0.02
+        particles.mainEmitter.spreadingAngle = 0.1
+        particles.mainEmitter.blendMode = .additive
+        // Strong backward push (+Z) turns the puffs into stretched streaks.
+        particles.mainEmitter.acceleration = [0, 0.35, 12]
+        particles.mainEmitter.color = .evolving(
+            start: .random(
+                a: UIColor(red: 0.25, green: 0.95, blue: 0.9, alpha: 0.75),
+                b: UIColor(red: 0.99, green: 0.45, blue: 0.8, alpha: 0.7)
+            ),
+            end: .single(UIColor(red: 0.62, green: 0.22, blue: 0.9, alpha: 0))
+        )
+        trail.components.set(particles)
+        return trail
+    }
+
+    /// Rescales the trail's emission with the current sprint speed so streaks
+    /// thicken as the run gets faster; Paint Rush and jetpack max it out.
+    /// Discrete tiers avoid re-setting the particle component every frame.
+    private func updateSpeedTrail(speed: Float, boosted: Bool) {
+        guard let trail = speedTrail else { return }
+        let range = max(1, WorldConfig.maxSpeed - WorldConfig.baseSpeed)
+        let normalized = max(0, min(1, (speed - WorldConfig.baseSpeed) / range))
+        let tier = boosted ? 5 : Int(normalized * 4)
+        guard tier != speedTrailTier else { return }
+        speedTrailTier = tier
+
+        guard var particles = trail.components[ParticleEmitterComponent.self] else { return }
+        let t = Float(tier) / 5
+        particles.mainEmitter.birthRate = 140 + t * 340
+        particles.speed = 1.4 + t * 1.8
+        particles.mainEmitter.acceleration = [0, 0.35, 12 + t * 10]
+        particles.mainEmitter.size = 0.042 + t * 0.022
+        particles.mainEmitter.lifeSpan = Double(0.34 + t * 0.12)
+        trail.components.set(particles)
     }
 
     /// Radial sparkle burst reused for coin and power-up pickups.
@@ -705,6 +774,13 @@ final class RunnerWorld {
             playerContainer.addChild(prop)
         }
 
+        // The speed trail follows the active character too.
+        if let trail = speedTrail {
+            trail.removeFromParent()
+            trail.isEnabled = false
+            playerContainer.addChild(trail)
+        }
+
         runnerAnimator?.setLoop(activeCharacter.idle)
         haptics.laneChange()
     }
@@ -749,6 +825,8 @@ final class RunnerWorld {
         jetpackVisualsActive = false
         jetpackProp?.isEnabled = false
         setJetpackThrust(active: false)
+        speedTrailTier = -1
+        speedTrail?.isEnabled = true
         inspectorGraceTimer = 0
         inspectorIntroTimer = 2.6
         inspectorTargetZ = 3.4
@@ -777,6 +855,7 @@ final class RunnerWorld {
         jetpackVisualsActive = false
         jetpackProp?.isEnabled = false
         setJetpackThrust(active: false)
+        speedTrail?.isEnabled = false
         runnerAnimator?.setLoop(activeCharacter.idle)
         inspectorAnimator?.setLoop(nil)
         inspectorContainer.isEnabled = false
@@ -918,6 +997,7 @@ final class RunnerWorld {
             }
         }
         worldSpeed = speed
+        updateSpeedTrail(speed: speed, boosted: paintRushTimer > 0 || jetpackActive)
 
         // Combo window: drain, then break the chain when time runs out.
         if comboTimer > 0 {
@@ -1566,6 +1646,7 @@ final class RunnerWorld {
         jetpackVisualsActive = false
         jetpackProp?.isEnabled = false
         setJetpackThrust(active: false)
+        speedTrail?.isEnabled = false
         haptics.crash()
         audio.play(.crash)
         audio.stopMusic()
