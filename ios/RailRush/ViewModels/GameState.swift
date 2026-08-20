@@ -13,6 +13,8 @@ final class GameState {
     // Live run values
     var score = 0
     var coins = 0
+    /// Meters covered in the current run, drives the HUD distance bar.
+    var distanceRun = 0
     var multiplier = 1
     var activePowerUp: PowerUpType?
     var powerUpProgress: Double = 0
@@ -66,6 +68,7 @@ final class GameState {
     func beginRun() {
         score = 0
         coins = 0
+        distanceRun = 0
         multiplier = 1
         activePowerUp = nil
         powerUpProgress = 0

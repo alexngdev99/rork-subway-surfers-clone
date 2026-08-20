@@ -16,6 +16,11 @@ struct HUDView: View {
             }
 
             VStack(spacing: 0) {
+                // Distance progress toward the next 500m milestone.
+                RunDistanceBar(distance: state.distanceRun)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 10)
+
                 HStack(alignment: .top) {
                     Button(action: onPause) {
                         Image(systemName: state.isPaused ? "play.fill" : "pause.fill")
@@ -215,6 +220,80 @@ private struct PaintRushOverlay: View {
                 pulse = true
             }
         }
+    }
+}
+
+/// Slim top-of-screen distance tracker: fills toward the next 500m milestone
+/// with a sneaker marker riding the fill edge and a checkered flag that pops
+/// (plus a haptic thump) every time a milestone is crossed.
+private struct RunDistanceBar: View {
+    let distance: Int
+
+    @State private var flagPop = false
+
+    private static let segmentLength = 500
+
+    private var milestoneIndex: Int { distance / Self.segmentLength }
+    private var nextMilestone: Int { (milestoneIndex + 1) * Self.segmentLength }
+    private var progress: Double {
+        Double(distance % Self.segmentLength) / Double(Self.segmentLength)
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            OutlinedText(text: "\(distance)m", size: 13)
+                .frame(minWidth: 52, alignment: .leading)
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.black.opacity(0.38))
+                        .overlay(Capsule().strokeBorder(.white.opacity(0.18), lineWidth: 1))
+
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [GameTheme.teal, Color(red: 1.0, green: 0.88, blue: 0.35)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: max(8, geo.size.width * progress))
+
+                    // Sneaker marker riding the fill edge.
+                    AssetIcon(name: "red_white_sneaker_lightning", size: 20, fallbackSymbol: "figure.run")
+                        .shadow(color: GameTheme.outline.opacity(0.6), radius: 0, y: 1)
+                        .offset(x: min(max(0, geo.size.width * progress - 10), geo.size.width - 20), y: -6)
+                }
+            }
+            .frame(height: 8)
+
+            HStack(spacing: 4) {
+                AssetIcon(name: "racing_flag_checkered", size: 19, fallbackSymbol: "flag.checkered")
+                    .scaleEffect(flagPop ? 1.45 : 1.0)
+                    .rotationEffect(.degrees(flagPop ? -12 : 0))
+                OutlinedText(text: Self.milestoneLabel(nextMilestone), size: 12)
+            }
+        }
+        .allowsHitTesting(false)
+        .animation(.linear(duration: 0.1), value: progress)
+        .onChange(of: milestoneIndex) { oldValue, newValue in
+            guard newValue > oldValue else { return }
+            HapticsService.shared.powerUp()
+            flagPop = true
+            withAnimation(.spring(duration: 0.45, bounce: 0.6).delay(0.05)) {
+                flagPop = false
+            }
+        }
+    }
+
+    /// "1K", "1.5K" past 1000m; plain meters below that.
+    private static func milestoneLabel(_ meters: Int) -> String {
+        guard meters >= 1000 else { return "\(meters)m" }
+        let km = Double(meters) / 1000
+        return km.truncatingRemainder(dividingBy: 1) == 0
+            ? "\(Int(km))K"
+            : String(format: "%.1fK", km)
     }
 }
 

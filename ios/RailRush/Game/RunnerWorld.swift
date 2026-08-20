@@ -139,6 +139,8 @@ final class RunnerWorld {
     private var worldSpeed: Float = WorldConfig.baseSpeed
     private var speedPenaltyTimer: Float = 0
     private var scoreAccumulator: Float = 0
+    /// Raw meters traveled this run (unaffected by the score multiplier).
+    private var distanceAccumulator: Float = 0
     private var distanceSinceSpawn: Float = 0
     private var nextSpawnGap: Float = 16
     private var powerUpTimer: Float = 0
@@ -734,6 +736,7 @@ final class RunnerWorld {
         worldSpeed = WorldConfig.baseSpeed
         speedPenaltyTimer = 0
         scoreAccumulator = 0
+        distanceAccumulator = 0
         distanceSinceSpawn = 0
         nextSpawnGap = 14
         powerUpTimer = 0
@@ -935,6 +938,10 @@ final class RunnerWorld {
         // Score
         scoreAccumulator += speed * dt * Float(state.multiplier)
         state.score = Int(scoreAccumulator)
+
+        // Distance (1 world unit ≈ 1 m), independent of the multiplier.
+        distanceAccumulator += speed * dt
+        state.distanceRun = Int(distanceAccumulator)
     }
 
     private func updatePlayer(dt: Float) {
