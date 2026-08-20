@@ -574,7 +574,7 @@ final class RunnerWorld {
         switch type {
         case .magnet: return GeneratedAssets.magnetPickupModel
         case .doubleScore: return GeneratedAssets.doubleScorePickupModel
-        case .jetpack: return GeneratedAssets.jetpackModel
+        case .jetpack: return GeneratedAssets.jetpackPickupModel ?? GeneratedAssets.jetpackModel
         }
     }
 
@@ -1152,11 +1152,12 @@ final class RunnerWorld {
 
     // MARK: Pickup bursts
 
+    /// Paint-splash burst tones matched to the BEAT RUNNER pickup set.
     private static func burstColor(for type: PowerUpType) -> UIColor {
         switch type {
-        case .magnet: return UIColor(red: 0.25, green: 0.6, blue: 1.0, alpha: 0.95)
-        case .doubleScore: return UIColor(red: 1.0, green: 0.75, blue: 0.1, alpha: 0.95)
-        case .jetpack: return UIColor(red: 1.0, green: 0.45, blue: 0.15, alpha: 0.95)
+        case .magnet: return UIColor(red: 0.16, green: 0.82, blue: 0.75, alpha: 0.95)
+        case .doubleScore: return UIColor(red: 0.72, green: 0.35, blue: 0.98, alpha: 0.95)
+        case .jetpack: return UIColor(red: 1.0, green: 0.52, blue: 0.14, alpha: 0.95)
         }
     }
 

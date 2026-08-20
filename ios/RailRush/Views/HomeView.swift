@@ -19,7 +19,7 @@ struct HomeView: View {
                 }
                 Spacer()
                 HUDChip {
-                    GoldCoinIcon(size: 18)
+                    MusicCoinIcon(size: 18)
                     OutlinedText(text: "\(state.totalCoins)", size: 17)
                 }
             }
@@ -42,7 +42,7 @@ struct HomeView: View {
                 HStack(spacing: 12) {
                     SwipeHint(symbol: "arrow.left.arrow.right", text: "Lanes")
                     SwipeHint(symbol: "arrow.up", text: "Jump")
-                    SwipeHint(symbol: "arrow.down", text: "Roll")
+                    SwipeHint(symbol: "arrow.down", text: "Slide")
                 }
 
                 Button(action: onRun) {
@@ -55,7 +55,7 @@ struct HomeView: View {
                     }
                     .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(ChunkyButtonStyle(palette: .green, height: 70, cornerRadius: 22))
+                .buttonStyle(ChunkyButtonStyle(palette: .yellow, height: 70, cornerRadius: 22))
                 .scaleEffect(pulse ? 1.02 : 1.0)
                 .padding(.horizontal, 34)
             }
@@ -97,8 +97,8 @@ private struct CharacterCard: View {
 
     private var cardGradient: [Color] {
         character.id == "girl"
-            ? [Color(red: 0.98, green: 0.55, blue: 0.75), Color(red: 0.55, green: 0.20, blue: 0.60)]
-            : [Color(red: 0.32, green: 0.68, blue: 0.96), Color(red: 0.09, green: 0.28, blue: 0.62)]
+            ? [Color(red: 0.98, green: 0.50, blue: 0.78), Color(red: 0.52, green: 0.14, blue: 0.60)]
+            : [Color(red: 0.62, green: 0.42, blue: 0.96), Color(red: 0.26, green: 0.10, blue: 0.58)]
     }
 
     private var avatar: UIImage? {

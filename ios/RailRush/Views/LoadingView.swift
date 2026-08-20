@@ -13,14 +13,19 @@ struct LoadingView: View {
 
     private static let tips: [String] = [
         "Swipe up to jump over barriers",
-        "Swipe down to roll under signs",
-        "Grab the magnet to pull coins in",
-        "Jetpack lifts you over every train",
+        "Swipe down to slide under signs",
+        "Spray can pulls music notes to you",
+        "Rocket Kicks fly you over every train",
+        "Boombox doubles every beat you score",
         "Stumble twice and the inspector wins",
     ]
 
     private var hasKeyArt: Bool {
-        UIImage(named: "boy_hoverboard_chase") != nil
+        UIImage(named: "street_music_festival_loading") != nil || UIImage(named: "boy_hoverboard_chase") != nil
+    }
+
+    private var keyArtName: String {
+        UIImage(named: "street_music_festival_loading") != nil ? "street_music_festival_loading" : "boy_hoverboard_chase"
     }
 
     var body: some View {
@@ -69,9 +74,9 @@ struct LoadingView: View {
     /// Full-bleed generated key art with subtle scrims so the logo and
     /// loading bar stay readable on top of the busy illustration.
     private var keyArtBackground: some View {
-        Color(red: 0.16, green: 0.3, blue: 0.5)
+        GameTheme.bgDeep
             .overlay {
-                Image("boy_hoverboard_chase")
+                Image(keyArtName)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .allowsHitTesting(false)
@@ -97,9 +102,9 @@ struct LoadingView: View {
         ZStack {
             LinearGradient(
                 colors: [
-                    Color(red: 0.36, green: 0.72, blue: 0.95),
-                    Color(red: 0.45, green: 0.82, blue: 0.9),
-                    Color(red: 0.99, green: 0.78, blue: 0.45),
+                    Color(red: 0.36, green: 0.14, blue: 0.62),
+                    Color(red: 0.56, green: 0.20, blue: 0.72),
+                    Color(red: 0.94, green: 0.40, blue: 0.55),
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -113,7 +118,7 @@ struct LoadingView: View {
                 .offset(y: -120)
 
             CitySilhouette()
-                .fill(Color(red: 0.16, green: 0.3, blue: 0.5).opacity(0.5))
+                .fill(GameTheme.outline.opacity(0.55))
                 .frame(height: 220)
                 .frame(maxHeight: .infinity, alignment: .bottom)
                 .ignoresSafeArea()

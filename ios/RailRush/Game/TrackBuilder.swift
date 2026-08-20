@@ -16,6 +16,9 @@ enum TrackBuilder {
         var lamp: Entity?
         /// Sidewalk curb strip cloned along both track edges.
         var curb: Entity?
+        /// Festival props lining the street: concert speaker stacks + congas.
+        var speaker: Entity?
+        var conga: Entity?
     }
 
     static var decorPrototypes = DecorPrototypes()
@@ -101,15 +104,50 @@ enum TrackBuilder {
             )
             decorPrototypes.curb = container
         }
+        if let name = GeneratedAssets.speakerStackModel,
+           let visual = try? await Entity(named: name) {
+            let container = Entity()
+            attachGeneratedModelVisual(
+                visual,
+                to: container,
+                targetHeight: 2.6,
+                localFrontAxis: GeneratedAssets.speakerStackFrontAxis,
+                localUpAxis: GeneratedAssets.speakerStackUpAxis,
+                desiredWorldForward: [0, 0, 1]
+            )
+            decorPrototypes.speaker = container
+        }
+        if let name = GeneratedAssets.congaDrumsModel,
+           let visual = try? await Entity(named: name) {
+            let container = Entity()
+            attachGeneratedModelVisual(
+                visual,
+                to: container,
+                targetHeight: 1.15,
+                localFrontAxis: GeneratedAssets.congaDrumsFrontAxis,
+                localUpAxis: GeneratedAssets.congaDrumsUpAxis,
+                desiredWorldForward: [0, 0, 1]
+            )
+            decorPrototypes.conga = container
+        }
     }
 
     private static let buildingPalette: [UIColor] = [
-        UIColor(red: 0.95, green: 0.55, blue: 0.25, alpha: 1),
-        UIColor(red: 0.36, green: 0.62, blue: 0.72, alpha: 1),
-        UIColor(red: 0.85, green: 0.73, blue: 0.45, alpha: 1),
-        UIColor(red: 0.62, green: 0.45, blue: 0.62, alpha: 1),
-        UIColor(red: 0.42, green: 0.55, blue: 0.42, alpha: 1),
-        UIColor(red: 0.78, green: 0.42, blue: 0.38, alpha: 1),
+        UIColor(red: 0.98, green: 0.56, blue: 0.20, alpha: 1),
+        UIColor(red: 0.60, green: 0.34, blue: 0.86, alpha: 1),
+        UIColor(red: 0.95, green: 0.40, blue: 0.62, alpha: 1),
+        UIColor(red: 0.20, green: 0.72, blue: 0.70, alpha: 1),
+        UIColor(red: 0.99, green: 0.78, blue: 0.28, alpha: 1),
+        UIColor(red: 0.42, green: 0.52, blue: 0.92, alpha: 1),
+    ]
+
+    /// Confetti / streamer festival palette shared by trusses and bunting.
+    static let festivalPalette: [UIColor] = [
+        UIColor(red: 0.94, green: 0.26, blue: 0.62, alpha: 1),
+        UIColor(red: 1.0, green: 0.80, blue: 0.22, alpha: 1),
+        UIColor(red: 0.25, green: 0.85, blue: 0.78, alpha: 1),
+        UIColor(red: 0.62, green: 0.36, blue: 0.95, alpha: 1),
+        UIColor(red: 1.0, green: 0.52, blue: 0.16, alpha: 1),
     ]
 
     /// One scrolling track segment; call `randomizeDecor(on:)` when recycling.
@@ -151,9 +189,87 @@ enum TrackBuilder {
         segment.addChild(generatedDecor)
         populateGeneratedDecor(in: generatedDecor)
 
+        // Concert light truss spanning the track once per segment, with
+        // strings of bunting flags hanging off both sides.
+        addLightTruss(to: segment, atZ: -segmentLength * 0.25)
+        addBuntingLine(to: segment, atZ: segmentLength * 0.2, height: 4.6)
+
         randomizeDecor(on: segment)
 
         return segment
+    }
+
+    /// Concert lighting gantry: two side posts, a horizontal truss beam, and a
+    /// row of colored stage-light boxes shining down on the track.
+    private static func addLightTruss(to segment: Entity, atZ z: Float) {
+        let truss = Entity()
+        truss.position = [0, 0, z]
+
+        let frameMaterial = SimpleMaterial(color: UIColor(red: 0.28, green: 0.26, blue: 0.34, alpha: 1), roughness: 0.55, isMetallic: true)
+        for side in [Float(-1), 1] {
+            let post = ModelEntity(mesh: .generateBox(size: [0.22, 5.6, 0.22]), materials: [frameMaterial])
+            post.position = [side * 5.6, 2.8, 0]
+            truss.addChild(post)
+        }
+        let beam = ModelEntity(mesh: .generateBox(size: [11.6, 0.3, 0.3]), materials: [frameMaterial])
+        beam.position = [0, 5.45, 0]
+        truss.addChild(beam)
+        // Thin cross-brace under the beam for the truss look.
+        let brace = ModelEntity(mesh: .generateBox(size: [11.6, 0.08, 0.08]), materials: [frameMaterial])
+        brace.position = [0, 5.12, 0]
+        truss.addChild(brace)
+
+        // Colored stage-light cans hanging under the beam.
+        let lightXs: [Float] = [-4.2, -2.1, 0, 2.1, 4.2]
+        for (index, x) in lightXs.enumerated() {
+            let color = festivalPalette[index % festivalPalette.count]
+            let housing = ModelEntity(
+                mesh: .generateBox(size: [0.34, 0.4, 0.34], cornerRadius: 0.06),
+                materials: [SimpleMaterial(color: UIColor(white: 0.16, alpha: 1), roughness: 0.5, isMetallic: true)]
+            )
+            housing.position = [x, 4.9, 0]
+            truss.addChild(housing)
+
+            let lens = ModelEntity(
+                mesh: .generateSphere(radius: 0.14),
+                materials: [UnlitMaterial(color: color)]
+            )
+            lens.position = [x, 4.68, 0]
+            truss.addChild(lens)
+        }
+
+        segment.addChild(truss)
+    }
+
+    /// A sagging string of colorful triangle bunting flags across the track.
+    private static func addBuntingLine(to segment: Entity, atZ z: Float, height: Float) {
+        let line = Entity()
+        line.position = [0, 0, z]
+
+        let wire = ModelEntity(
+            mesh: .generateBox(size: [11.0, 0.03, 0.03]),
+            materials: [UnlitMaterial(color: UIColor(white: 0.92, alpha: 1))]
+        )
+        wire.position = [0, height, 0]
+        line.addChild(wire)
+
+        let flagCount = 9
+        for i in 0..<flagCount {
+            let t = Float(i) / Float(flagCount - 1)
+            let x = -5.0 + t * 10.0
+            // Gentle catenary-ish sag toward the middle.
+            let sag = sinf(t * .pi) * 0.55
+            let color = festivalPalette[i % festivalPalette.count]
+            let flag = ModelEntity(
+                mesh: .generateBox(size: [0.36, 0.5, 0.02]),
+                materials: [UnlitMaterial(color: color)]
+            )
+            flag.position = [x, height - 0.28 - sag, 0]
+            flag.orientation = simd_quatf(angle: Float.random(in: -0.12...0.12), axis: [0, 0, 1])
+            line.addChild(flag)
+        }
+
+        segment.addChild(line)
     }
 
     /// Subway Surfers-style track bed, built procedurally for a guaranteed
@@ -300,6 +416,19 @@ enum TrackBuilder {
                     container.addChild(clone)
                 }
             }
+            // One festival prop per side: speaker stack + conga set.
+            if let speaker = decorPrototypes.speaker {
+                let clone = speaker.clone(recursive: true)
+                clone.name = "gen_speaker"
+                clone.position = [side * 6.6, 0, -6]
+                container.addChild(clone)
+            }
+            if let conga = decorPrototypes.conga {
+                let clone = conga.clone(recursive: true)
+                clone.name = "gen_conga"
+                clone.position = [side * 6.4, 0, 8]
+                container.addChild(clone)
+            }
         }
     }
 
@@ -378,6 +507,14 @@ enum TrackBuilder {
                 child.position = [side * 5.85, 0, Float.random(in: -halfLength + 3 ... halfLength - 3)]
                 child.scale = SIMD3<Float>(repeating: 1)
                 child.orientation = faceTrack
+            case "gen_speaker":
+                child.position = [side * Float.random(in: 6.2...7.2), 0, Float.random(in: -halfLength + 2 ... halfLength - 2)]
+                child.scale = SIMD3<Float>(repeating: Float.random(in: 0.9...1.12))
+                child.orientation = faceTrack
+            case "gen_conga":
+                child.position = [side * Float.random(in: 6.1...7.0), 0, Float.random(in: -halfLength + 2 ... halfLength - 2)]
+                child.scale = SIMD3<Float>(repeating: Float.random(in: 0.85...1.05))
+                child.orientation = faceTrack
             default:
                 break
             }
@@ -390,14 +527,14 @@ enum TrackBuilder {
 
         let sky = ModelEntity(
             mesh: .generatePlane(width: 400, height: 180),
-            materials: [UnlitMaterial(color: UIColor(red: 0.45, green: 0.78, blue: 0.92, alpha: 1))]
+            materials: [UnlitMaterial(color: UIColor(red: 0.40, green: 0.72, blue: 0.98, alpha: 1))]
         )
         sky.position = [0, 60, -110]
         backdrop.addChild(sky)
 
         let horizonGlow = ModelEntity(
             mesh: .generatePlane(width: 400, height: 26),
-            materials: [UnlitMaterial(color: UIColor(red: 0.99, green: 0.85, blue: 0.55, alpha: 1))]
+            materials: [UnlitMaterial(color: UIColor(red: 1.0, green: 0.72, blue: 0.72, alpha: 1))]
         )
         horizonGlow.position = [0, 10, -109]
         backdrop.addChild(horizonGlow)
@@ -409,17 +546,45 @@ enum TrackBuilder {
         sun.position = [26, 46, -108]
         backdrop.addChild(sun)
 
-        // Distant skyline silhouettes
-        let silhouette = UIColor(red: 0.35, green: 0.5, blue: 0.65, alpha: 1)
+        // Distant skyline silhouettes in festival dusk purples and pinks.
+        let silhouettes: [UIColor] = [
+            UIColor(red: 0.48, green: 0.36, blue: 0.72, alpha: 1),
+            UIColor(red: 0.62, green: 0.40, blue: 0.78, alpha: 1),
+            UIColor(red: 0.72, green: 0.44, blue: 0.70, alpha: 1),
+        ]
         for i in 0..<14 {
             let height = Float.random(in: 12...34)
             let tower = ModelEntity(
                 mesh: .generateBox(size: [Float.random(in: 6...12), height, 4]),
-                materials: [UnlitMaterial(color: silhouette)]
+                materials: [UnlitMaterial(color: silhouettes[i % silhouettes.count])]
             )
             tower.position = [Float(i - 7) * 14 + Float.random(in: -3...3), height / 2, -100]
             backdrop.addChild(tower)
         }
+
+        // Slow-falling confetti filling the air over the whole track.
+        let confetti = Entity()
+        var particles = ParticleEmitterComponent()
+        particles.emitterShape = .box
+        particles.emitterShapeSize = [14, 0.5, 90]
+        particles.birthLocation = .volume
+        particles.speed = 0.25
+        particles.speedVariation = 0.2
+        particles.mainEmitter.birthRate = 60
+        particles.mainEmitter.lifeSpan = 9
+        particles.mainEmitter.lifeSpanVariation = 2
+        particles.mainEmitter.size = 0.055
+        particles.mainEmitter.sizeVariation = 0.03
+        particles.mainEmitter.spreadingAngle = 0.5
+        particles.mainEmitter.acceleration = [0.35, -1.1, 0.5]
+        particles.mainEmitter.angularSpeed = 2.4
+        particles.mainEmitter.color = .constant(.random(
+            a: UIColor(red: 0.94, green: 0.26, blue: 0.62, alpha: 0.95),
+            b: UIColor(red: 1.0, green: 0.82, blue: 0.24, alpha: 0.95)
+        ))
+        confetti.components.set(particles)
+        confetti.position = [0, 10.5, -30]
+        backdrop.addChild(confetti)
 
         // Far ground filler so gaps between buildings don't show sky
         let farGround = ModelEntity(

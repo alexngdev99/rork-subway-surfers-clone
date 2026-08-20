@@ -56,9 +56,9 @@ struct GameOverView: View {
                         }
 
                         HStack(spacing: 12) {
-                            StatWell(title: "RUN COINS") {
+                            StatWell(title: "RUN NOTES") {
                                 HStack(spacing: 6) {
-                                    GoldCoinIcon(size: 17)
+                                    MusicCoinIcon(size: 17)
                                     OutlinedText(text: "\(state.lastRunCoins)", size: 20)
                                 }
                             }

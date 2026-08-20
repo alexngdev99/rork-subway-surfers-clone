@@ -1,20 +1,24 @@
 import SwiftUI
 
-/// Shared visual language for every game screen — modern arcade-runner style:
-/// deep blue panels, chunky beveled 3D buttons, and bold white lettering with
-/// a dark navy outline.
+/// Shared visual language for every game screen — BEAT RUNNER street-festival
+/// style: deep purple panels, chunky beveled 3D buttons, paint-splash accents,
+/// and bold white lettering with a dark plum outline.
 enum GameTheme {
-    static let bgDeep = Color(red: 0.04, green: 0.15, blue: 0.32)
-    /// Dark navy used for text outlines and title banners.
-    static let outline = Color(red: 0.07, green: 0.15, blue: 0.30)
-    static let panelTop = Color(red: 0.26, green: 0.62, blue: 0.92)
-    static let panelBottom = Color(red: 0.12, green: 0.42, blue: 0.78)
+    static let bgDeep = Color(red: 0.14, green: 0.05, blue: 0.28)
+    /// Dark plum used for text outlines and title banners.
+    static let outline = Color(red: 0.17, green: 0.06, blue: 0.32)
+    static let panelTop = Color(red: 0.58, green: 0.31, blue: 0.88)
+    static let panelBottom = Color(red: 0.36, green: 0.14, blue: 0.64)
     /// Darker inset area placed inside bright panels (score boxes, stat rows).
-    static let well = Color(red: 0.08, green: 0.26, blue: 0.52)
+    static let well = Color(red: 0.23, green: 0.09, blue: 0.44)
     /// Semi-opaque dark chip used over the live 3D scene (HUD counters).
-    static let chip = Color(red: 0.05, green: 0.16, blue: 0.33).opacity(0.82)
+    static let chip = Color(red: 0.15, green: 0.05, blue: 0.30).opacity(0.82)
     static let gold = Color(red: 1.0, green: 0.79, blue: 0.24)
-    static let goldDeep = Color(red: 0.94, green: 0.6, blue: 0.07)
+    static let goldDeep = Color(red: 0.95, green: 0.58, blue: 0.08)
+    /// Hot magenta accent pulled from the key art paint splashes.
+    static let magenta = Color(red: 0.94, green: 0.26, blue: 0.62)
+    /// Teal accent from spray cans and sneakers in the art.
+    static let teal = Color(red: 0.16, green: 0.80, blue: 0.75)
 }
 
 /// Face/lip color set for one chunky 3D button.
@@ -33,15 +37,25 @@ struct ChunkyPalette {
         bottom: Color(red: 0.96, green: 0.64, blue: 0.10),
         lip: Color(red: 0.74, green: 0.46, blue: 0.03)
     )
-    static let blue = ChunkyPalette(
-        top: Color(red: 0.36, green: 0.72, blue: 0.98),
-        bottom: Color(red: 0.15, green: 0.47, blue: 0.88),
-        lip: Color(red: 0.09, green: 0.30, blue: 0.60)
+    static let magenta = ChunkyPalette(
+        top: Color(red: 0.97, green: 0.45, blue: 0.75),
+        bottom: Color(red: 0.80, green: 0.16, blue: 0.53),
+        lip: Color(red: 0.54, green: 0.07, blue: 0.37)
+    )
+    static let purple = ChunkyPalette(
+        top: Color(red: 0.66, green: 0.44, blue: 0.94),
+        bottom: Color(red: 0.44, green: 0.22, blue: 0.76),
+        lip: Color(red: 0.28, green: 0.11, blue: 0.52)
+    )
+    static let teal = ChunkyPalette(
+        top: Color(red: 0.33, green: 0.87, blue: 0.82),
+        bottom: Color(red: 0.10, green: 0.62, blue: 0.62),
+        lip: Color(red: 0.04, green: 0.40, blue: 0.43)
     )
     static let slate = ChunkyPalette(
-        top: Color(red: 0.45, green: 0.55, blue: 0.70),
-        bottom: Color(red: 0.29, green: 0.38, blue: 0.53),
-        lip: Color(red: 0.17, green: 0.24, blue: 0.36)
+        top: Color(red: 0.56, green: 0.48, blue: 0.72),
+        bottom: Color(red: 0.38, green: 0.30, blue: 0.54),
+        lip: Color(red: 0.23, green: 0.17, blue: 0.37)
     )
 }
 
@@ -127,7 +141,7 @@ struct OutlinedText: View {
     }
 }
 
-/// Bright blue rounded panel used for pause / game-over dialogs.
+/// Vivid purple rounded panel used for pause / game-over dialogs.
 struct GamePanel<Content: View>: View {
     var cornerRadius: CGFloat = 28
     @ViewBuilder let content: Content
@@ -152,7 +166,7 @@ struct GamePanel<Content: View>: View {
     }
 }
 
-/// Dark navy ribbon with big outlined lettering, slightly tilted — sits on
+/// Dark plum ribbon with big outlined lettering, slightly tilted — sits on
 /// top of a GamePanel like the "SO CLOSE!" banner.
 struct BannerTitle: View {
     let text: String
@@ -163,6 +177,13 @@ struct BannerTitle: View {
             .padding(.horizontal, 26)
             .padding(.vertical, 10)
             .background(GameTheme.outline, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 13, weight: .black))
+                    .foregroundStyle(GameTheme.gold)
+                    .offset(x: 4, y: -5)
+                    .rotationEffect(.degrees(14))
+            }
             .rotationEffect(.degrees(-2))
             .shadow(color: .black.opacity(0.4), radius: 8, y: 5)
     }
@@ -199,8 +220,9 @@ struct HUDChip<Content: View>: View {
     }
 }
 
-/// Small gold coin used in counters and stat rows.
-struct GoldCoinIcon: View {
+/// Small golden music-note coin used in counters and stat rows —
+/// the collectible currency of BEAT RUNNER.
+struct MusicCoinIcon: View {
     var size: CGFloat = 20
 
     var body: some View {
@@ -215,43 +237,59 @@ struct GoldCoinIcon: View {
                 )
             Circle()
                 .strokeBorder(Color(red: 0.72, green: 0.45, blue: 0.03), lineWidth: size * 0.11)
-            Image(systemName: "star.fill")
-                .font(.system(size: size * 0.44, weight: .black))
+            Image(systemName: "music.note")
+                .font(.system(size: size * 0.5, weight: .black))
                 .foregroundStyle(Color(red: 0.85, green: 0.55, blue: 0.05))
         }
         .frame(width: size, height: size)
     }
 }
 
-/// Two-line tilted RAIL RUSH logo shared by the loading and home screens.
+/// Two-line tilted BEAT RUNNER logo shared by the loading and home screens:
+/// hot magenta-to-purple "BEAT" over gold "RUNNER", with star sparkles like
+/// the key art graffiti lockup.
 struct GameLogo: View {
     var size: CGFloat = 64
 
     var body: some View {
         VStack(spacing: 0) {
             OutlinedText(
-                text: "RAIL",
+                text: "BEAT",
                 size: size,
                 fill: AnyShapeStyle(
                     LinearGradient(
-                        colors: [Color(red: 1.0, green: 0.82, blue: 0.20), Color(red: 1.0, green: 0.50, blue: 0.10)],
+                        colors: [Color(red: 0.99, green: 0.45, blue: 0.80), Color(red: 0.62, green: 0.22, blue: 0.90)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
             )
             OutlinedText(
-                text: "RUSH",
-                size: size,
+                text: "RUNNER",
+                size: size * 0.82,
                 fill: AnyShapeStyle(
                     LinearGradient(
-                        colors: [Color(red: 0.20, green: 0.92, blue: 0.86), Color(red: 0.0, green: 0.62, blue: 0.68)],
+                        colors: [Color(red: 1.0, green: 0.86, blue: 0.30), Color(red: 0.98, green: 0.56, blue: 0.10)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
             )
-            .padding(.top, -size * 0.30)
+            .padding(.top, -size * 0.26)
+        }
+        .overlay(alignment: .topLeading) {
+            Image(systemName: "star.fill")
+                .font(.system(size: size * 0.24, weight: .black))
+                .foregroundStyle(GameTheme.teal)
+                .offset(x: -size * 0.34, y: -size * 0.08)
+                .rotationEffect(.degrees(-12))
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Image(systemName: "music.note")
+                .font(.system(size: size * 0.30, weight: .black))
+                .foregroundStyle(GameTheme.magenta)
+                .offset(x: size * 0.36, y: size * 0.04)
+                .rotationEffect(.degrees(14))
         }
         .shadow(color: .black.opacity(0.35), radius: 0, x: 3, y: 5)
         .rotationEffect(.degrees(-4))

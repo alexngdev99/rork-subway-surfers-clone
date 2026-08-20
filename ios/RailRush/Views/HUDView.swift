@@ -14,7 +14,7 @@ struct HUDView: View {
                         .foregroundStyle(.white)
                         .shadow(color: GameTheme.outline.opacity(0.9), radius: 0, y: 2)
                 }
-                .buttonStyle(ChunkyButtonStyle(palette: .blue, height: 48, cornerRadius: 14))
+                .buttonStyle(ChunkyButtonStyle(palette: .magenta, height: 48, cornerRadius: 14))
                 .frame(width: 48)
 
                 Spacer()
@@ -24,7 +24,7 @@ struct HUDView: View {
                         .animation(.snappy(duration: 0.2), value: state.score)
 
                     HUDChip {
-                        GoldCoinIcon(size: 18)
+                        MusicCoinIcon(size: 18)
                         OutlinedText(text: "\(state.coins)", size: 18)
                             .animation(.snappy(duration: 0.2), value: state.coins)
                     }
@@ -104,9 +104,9 @@ private struct PowerUpBadge: View {
 
     private var badgeColor: Color {
         switch type {
-        case .magnet: return Color(red: 0.2, green: 0.55, blue: 1.0)
-        case .doubleScore: return Color(red: 0.9, green: 0.6, blue: 0.05)
-        case .jetpack: return Color(red: 0.95, green: 0.35, blue: 0.1)
+        case .magnet: return Color(red: 0.06, green: 0.62, blue: 0.58)
+        case .doubleScore: return Color(red: 0.55, green: 0.24, blue: 0.85)
+        case .jetpack: return Color(red: 0.95, green: 0.45, blue: 0.08)
         }
     }
 }

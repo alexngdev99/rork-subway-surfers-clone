@@ -16,17 +16,17 @@ enum PowerUpType: CaseIterable {
 
     var displayName: String {
         switch self {
-        case .magnet: return "Coin Magnet"
-        case .doubleScore: return "2x Score"
-        case .jetpack: return "Jetpack"
+        case .magnet: return "Note Magnet"
+        case .doubleScore: return "2x Beat"
+        case .jetpack: return "Rocket Kicks"
         }
     }
 
     var symbolName: String {
         switch self {
         case .magnet: return "wand.and.stars"
-        case .doubleScore: return "xmark.circle.fill"
-        case .jetpack: return "flame.fill"
+        case .doubleScore: return "music.note"
+        case .jetpack: return "bolt.fill"
         }
     }
 

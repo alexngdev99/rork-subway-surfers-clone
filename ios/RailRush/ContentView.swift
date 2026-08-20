@@ -7,7 +7,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Color(red: 0.45, green: 0.78, blue: 0.92)
+            GameTheme.bgDeep
                 .ignoresSafeArea()
 
             if let world {
