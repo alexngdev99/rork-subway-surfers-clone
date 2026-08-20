@@ -501,38 +501,81 @@ enum TrackBuilder {
         segment.addChild(line)
     }
 
-    /// Mockup-style sunset track bed: dark packed dirt, full-width wooden
-    /// sleepers, rails for the three lanes plus a parked-train siding per
-    /// side, and bright paint splats across the dirt.
+    /// Track centers: three player lanes plus a parked-train siding per side.
+    private static var trackCenters: [Float] { laneXs + [-4.35, 4.35] }
+    /// Rail gauge half-width per track.
+    private static let railGauge: Float = 0.62
+
+    /// Mockup-style sunset track bed. Each lane is its OWN railway track:
+    /// a raised gravel ballast strip, dense per-track wooden sleepers with
+    /// rusty fixing plates under the rails, and a proper two-part rail
+    /// profile (dark steel web + bright polished silver head). Between the
+    /// tracks sit sunken dirt gutters splashed with paint.
     private static func addTrackBed(to segment: Entity) {
         // Full-width packed dirt bed, dusk-darkened; top surface sits at y = 0.
         let bed = ModelEntity(
             mesh: .generateBox(size: [9.6, 0.24, segmentLength]),
-            materials: [SimpleMaterial(color: UIColor(red: 0.42, green: 0.30, blue: 0.20, alpha: 1), roughness: 1, isMetallic: false)]
+            materials: [SimpleMaterial(color: UIColor(red: 0.34, green: 0.23, blue: 0.16, alpha: 1), roughness: 1, isMetallic: false)]
         )
         bed.position = [0, -0.12, 0]
         segment.addChild(bed)
 
-        // Full-width wooden sleepers spanning the whole bed (mockup look).
-        let sleeperMesh = MeshResource.generateBox(size: [9.2, 0.1, 0.5], cornerRadius: 0.03)
-        let sleeperMaterial = SimpleMaterial(color: UIColor(red: 0.46, green: 0.21, blue: 0.15, alpha: 1), roughness: 0.85, isMetallic: false)
-        let sleeperSpacing: Float = 1.4
-        let sleeperCount = Int(segmentLength / sleeperSpacing)
-        for i in 0..<sleeperCount {
-            let sleeper = ModelEntity(mesh: sleeperMesh, materials: [sleeperMaterial])
-            sleeper.position = [0, 0.05, -segmentLength / 2 + sleeperSpacing * (Float(i) + 0.5)]
-            segment.addChild(sleeper)
+        // Raised gravel ballast strip under each track — separates the five
+        // tracks with sunken dirt gutters like the mockup.
+        let ballastMesh = MeshResource.generateBox(size: [1.7, 0.06, segmentLength])
+        let ballastMaterial = SimpleMaterial(color: UIColor(red: 0.40, green: 0.33, blue: 0.28, alpha: 1), roughness: 1, isMetallic: false)
+        for trackX in trackCenters {
+            let ballast = ModelEntity(mesh: ballastMesh, materials: [ballastMaterial])
+            ballast.position = [trackX, 0.03, 0]
+            segment.addChild(ballast)
         }
 
-        // Rails: three player lanes + one parked-train siding per side, warm
-        // sunset sheen on the metal.
-        let railMesh = MeshResource.generateBox(size: [0.1, 0.12, segmentLength])
-        let railMaterial = SimpleMaterial(color: UIColor(red: 0.80, green: 0.66, blue: 0.70, alpha: 1), roughness: 0.3, isMetallic: true)
-        for railX in laneXs + [-4.35, 4.35] {
-            for offset in [Float(-0.62), 0.62] {
-                let rail = ModelEntity(mesh: railMesh, materials: [railMaterial])
-                rail.position = [railX + offset, 0.16, 0]
-                segment.addChild(rail)
+        // Per-track wooden sleepers, dense spacing, two alternating wood
+        // tones. Merged into a handful of meshes so hundreds of boards cost
+        // only a few draw calls.
+        let sleeperSize = SIMD3<Float>(1.75, 0.08, 0.4)
+        let sleeperSpacing: Float = 0.95
+        let sleeperCount = Int(segmentLength / sleeperSpacing)
+        var evenCenters: [SIMD3<Float>] = []
+        var oddCenters: [SIMD3<Float>] = []
+        var plateCenters: [SIMD3<Float>] = []
+        for trackX in trackCenters {
+            for i in 0..<sleeperCount {
+                let z = -segmentLength / 2 + sleeperSpacing * (Float(i) + 0.5)
+                let center = SIMD3<Float>(trackX, 0.10, z)
+                if i.isMultiple(of: 2) { evenCenters.append(center) } else { oddCenters.append(center) }
+                // Rusty fixing plates pinning each rail to the sleeper.
+                plateCenters.append([trackX - railGauge, 0.15, z])
+                plateCenters.append([trackX + railGauge, 0.15, z])
+            }
+        }
+        let darkWood = SimpleMaterial(color: UIColor(red: 0.28, green: 0.16, blue: 0.10, alpha: 1), roughness: 0.9, isMetallic: false)
+        let midWood = SimpleMaterial(color: UIColor(red: 0.36, green: 0.20, blue: 0.13, alpha: 1), roughness: 0.9, isMetallic: false)
+        if let mesh = mergedBoxesMesh(centers: evenCenters, size: sleeperSize) {
+            segment.addChild(ModelEntity(mesh: mesh, materials: [darkWood]))
+        }
+        if let mesh = mergedBoxesMesh(centers: oddCenters, size: sleeperSize) {
+            segment.addChild(ModelEntity(mesh: mesh, materials: [midWood]))
+        }
+        let rustPlate = SimpleMaterial(color: UIColor(red: 0.48, green: 0.30, blue: 0.16, alpha: 1), roughness: 0.7, isMetallic: true)
+        if let mesh = mergedBoxesMesh(centers: plateCenters, size: [0.20, 0.03, 0.30]) {
+            segment.addChild(ModelEntity(mesh: mesh, materials: [rustPlate]))
+        }
+
+        // Rail profile: dark steel web with a bright polished silver head on
+        // top — the shiny lines that read "railway" from the game camera.
+        let webMesh = MeshResource.generateBox(size: [0.06, 0.10, segmentLength])
+        let webMaterial = SimpleMaterial(color: UIColor(red: 0.24, green: 0.22, blue: 0.26, alpha: 1), roughness: 0.55, isMetallic: true)
+        let headMesh = MeshResource.generateBox(size: [0.12, 0.05, segmentLength], cornerRadius: 0.015)
+        let headMaterial = SimpleMaterial(color: UIColor(red: 0.88, green: 0.88, blue: 0.94, alpha: 1), roughness: 0.18, isMetallic: true)
+        for trackX in trackCenters {
+            for offset in [-railGauge, railGauge] {
+                let web = ModelEntity(mesh: webMesh, materials: [webMaterial])
+                web.position = [trackX + offset, 0.19, 0]
+                segment.addChild(web)
+                let head = ModelEntity(mesh: headMesh, materials: [headMaterial])
+                head.position = [trackX + offset, 0.265, 0]
+                segment.addChild(head)
             }
         }
 
@@ -552,10 +595,15 @@ enum TrackBuilder {
                 materials: [UnlitMaterial(color: color)]
             )
             let side: Float = Bool.random() ? 1 : -1
-            let band: ClosedRange<Float> = Bool.random() ? 2.9...4.3 : 0.75...1.25
+            // Dirt gutters between tracks (low) or splashed across a track's
+            // ballast + sleepers (raised) like the mockup.
+            let onBallast = Int.random(in: 0..<3) == 0
+            let band: ClosedRange<Float> = onBallast
+                ? (Bool.random() ? 0.0...0.6 : 1.5...2.5)
+                : (Bool.random() ? 2.9...3.4 : 0.88...1.12)
             let position = SIMD3<Float>(
                 side * Float.random(in: band),
-                0.012,
+                onBallast ? 0.072 : 0.015,
                 Float.random(in: -segmentLength / 2 + 1 ... segmentLength / 2 - 1)
             )
             splat.position = position
@@ -567,14 +615,14 @@ enum TrackBuilder {
                 mesh: .generateBox(size: [width * 0.45, 0.04, depth * 0.5], cornerRadius: min(width, depth) * 0.2),
                 materials: [UnlitMaterial(color: color)]
             )
-            blob.position = position + [Float.random(in: -0.5...0.5), 0.004, Float.random(in: -0.5...0.5)]
+            blob.position = position + [Float.random(in: -0.4...0.4), 0.004, Float.random(in: -0.5...0.5)]
             blob.orientation = simd_quatf(angle: Float.random(in: 0...(2 * .pi)), axis: [0, 1, 0])
             segment.addChild(blob)
         }
 
         // Small pebbles scattered across the dirt strips between the tracks.
         let pebbleMaterial = SimpleMaterial(color: UIColor(red: 0.62, green: 0.58, blue: 0.55, alpha: 1), roughness: 0.9, isMetallic: false)
-        let pebbleBands: [ClosedRange<Float>] = [(-4.4)...(-3.1), (-1.12)...(-0.88), 0.88...1.12, 3.1...4.4]
+        let pebbleBands: [ClosedRange<Float>] = [(-3.42)...(-2.92), (-1.1)...(-0.9), 0.9...1.1, 2.92...3.42]
         for _ in 0..<8 {
             let size = Float.random(in: 0.1...0.2)
             let pebble = ModelEntity(
@@ -590,6 +638,47 @@ enum TrackBuilder {
             pebble.orientation = simd_quatf(angle: Float.random(in: 0...(2 * .pi)), axis: [0, 1, 0])
             segment.addChild(pebble)
         }
+    }
+
+    /// Merges many identical axis-aligned boxes into a single mesh so dense
+    /// repeated geometry (sleepers, fixing plates) costs one draw call
+    /// instead of hundreds of entities.
+    private static func mergedBoxesMesh(centers: [SIMD3<Float>], size: SIMD3<Float>) -> MeshResource? {
+        guard !centers.isEmpty else { return nil }
+        let h = size / 2
+        // Per-face corner offsets, wound counter-clockwise around the normal.
+        let faces: [(normal: SIMD3<Float>, corners: [SIMD3<Float>])] = [
+            ([0, 1, 0], [[-h.x, h.y, -h.z], [-h.x, h.y, h.z], [h.x, h.y, h.z], [h.x, h.y, -h.z]]),
+            ([0, -1, 0], [[-h.x, -h.y, -h.z], [h.x, -h.y, -h.z], [h.x, -h.y, h.z], [-h.x, -h.y, h.z]]),
+            ([0, 0, 1], [[-h.x, -h.y, h.z], [h.x, -h.y, h.z], [h.x, h.y, h.z], [-h.x, h.y, h.z]]),
+            ([0, 0, -1], [[h.x, -h.y, -h.z], [-h.x, -h.y, -h.z], [-h.x, h.y, -h.z], [h.x, h.y, -h.z]]),
+            ([1, 0, 0], [[h.x, -h.y, h.z], [h.x, -h.y, -h.z], [h.x, h.y, -h.z], [h.x, h.y, h.z]]),
+            ([-1, 0, 0], [[-h.x, -h.y, -h.z], [-h.x, -h.y, h.z], [-h.x, h.y, h.z], [-h.x, h.y, -h.z]]),
+        ]
+
+        var positions: [SIMD3<Float>] = []
+        var normals: [SIMD3<Float>] = []
+        var indices: [UInt32] = []
+        positions.reserveCapacity(centers.count * 24)
+        normals.reserveCapacity(centers.count * 24)
+        indices.reserveCapacity(centers.count * 36)
+
+        for center in centers {
+            for face in faces {
+                let base = UInt32(positions.count)
+                for corner in face.corners {
+                    positions.append(center + corner)
+                    normals.append(face.normal)
+                }
+                indices.append(contentsOf: [base, base + 1, base + 2, base, base + 2, base + 3])
+            }
+        }
+
+        var descriptor = MeshDescriptor(name: "merged_boxes")
+        descriptor.positions = MeshBuffer(positions)
+        descriptor.normals = MeshBuffer(normals)
+        descriptor.primitives = .triangles(indices)
+        return try? MeshResource.generate(from: [descriptor])
     }
 
     /// Clones the generated curb prototype into evenly-spaced strips along both
