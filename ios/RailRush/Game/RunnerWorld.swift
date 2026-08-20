@@ -47,6 +47,9 @@ final class ObstacleNode {
 final class CoinNode {
     let entity: Entity
     var isActive = false
+    /// 0→1 attraction ramp while a magnet is vacuuming this coin in — drives
+    /// pull acceleration, spin speed and the shrink as it reaches the player.
+    var magnetPull: Float = 0
 
     init(entity: Entity) {
         self.entity = entity
@@ -1034,7 +1037,9 @@ final class RunnerWorld {
 
         for coin in coinPool where coin.isActive {
             coin.entity.position.z += dz
-            coin.entity.orientation = simd_quatf(angle: coinSpinAngle, axis: [0, 1, 0])
+            // Magnetized coins spin wildly as they whip toward the player.
+            let spinBoost = 1 + coin.magnetPull * 4
+            coin.entity.orientation = simd_quatf(angle: coinSpinAngle * spinBoost, axis: [0, 1, 0])
             if coin.entity.position.z > WorldConfig.despawnZ {
                 coin.isActive = false
                 coin.entity.isEnabled = false
@@ -1170,6 +1175,8 @@ final class RunnerWorld {
         for _ in 0..<count {
             guard let coin = coinPool.first(where: { !$0.isActive }) else { return }
             coin.entity.position = [WorldConfig.laneXs[lane], height, z]
+            coin.magnetPull = 0
+            coin.entity.scale = .one
             coin.isActive = true
             coin.entity.isEnabled = true
             z -= 1.7
@@ -1195,30 +1202,66 @@ final class RunnerWorld {
             var position = coin.entity.position
 
             if magnetActive {
-                let dz = position.z
-                if dz > -8 && dz < 2 {
-                    let target = SIMD3<Float>(playerX, playerCenterY, 0)
-                    let delta = target - position
-                    let distance = simd_length(delta)
-                    if distance < 6 {
-                        position += simd_normalize(delta) * min(distance, 16 * dt)
-                        coin.entity.position = position
+                let target = SIMD3<Float>(playerX, playerCenterY, 0)
+                let delta = target - position
+                let distance = simd_length(delta)
+                let inReach = position.z > -12 && position.z < 2.5 && distance < 8.5
+
+                if (inReach || coin.magnetPull > 0), distance > 0.01 {
+                    // Teal snap-flash the instant the magnet grabs a coin.
+                    if coin.magnetPull == 0 {
+                        spawnPickupBurst(
+                            at: position,
+                            color: UIColor(red: 0.16, green: 0.82, blue: 0.75, alpha: 0.95),
+                            accent: UIColor(red: 0.8, green: 1.0, blue: 0.96, alpha: 0.95),
+                            scale: 0.45
+                        )
                     }
+
+                    // Ramping pull: coins ease out of formation, then whip in
+                    // faster than the world scrolls so they always catch up.
+                    coin.magnetPull = min(1, coin.magnetPull + dt * 2.4)
+                    let pullSpeed = 6 + coin.magnetPull * 26 + worldSpeed
+                    var step = simd_normalize(delta) * min(distance, pullSpeed * dt)
+
+                    // Sideways swirl + slight lift early in the pull sells the
+                    // "vacuum" look instead of a straight slide.
+                    let looseness = 1 - coin.magnetPull
+                    step.x += sin((runTime + position.z) * 13) * 1.4 * looseness * dt
+                    step.y += 0.9 * looseness * dt
+
+                    position += step
+                    coin.entity.position = position
+
+                    // Shrink as the coin funnels into the player.
+                    let shrink = max(0.3, min(1, distance / 2.6))
+                    coin.entity.scale = SIMD3<Float>(repeating: shrink)
                 }
+            } else if coin.magnetPull > 0 {
+                // Magnet expired mid-pull: release the coin and restore size.
+                coin.magnetPull = 0
+                coin.entity.scale = .one
             }
 
-            if abs(position.z) < 0.8,
-               abs(position.x - playerX) < 0.95,
-               abs(position.y - playerCenterY) < 1.25 {
+            // Magnetized coins are homing anyway — collect a touch earlier so
+            // the funnel reads as a clean suck-in, never a fly-through miss.
+            let reach: Float = coin.magnetPull > 0 ? 1.25 : 0.95
+            if abs(position.z) < (coin.magnetPull > 0 ? 1.1 : 0.8),
+               abs(position.x - playerX) < reach,
+               abs(position.y - playerCenterY) < 1.25 + coin.magnetPull * 0.4 {
                 coin.isActive = false
                 coin.entity.isEnabled = false
+                coin.entity.scale = .one
                 state.coins += 1
                 registerComboPickup()
                 spawnPickupBurst(
                     at: position,
                     color: UIColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 0.95),
-                    accent: UIColor(red: 1.0, green: 0.98, blue: 0.8, alpha: 0.95)
+                    accent: coin.magnetPull > 0
+                        ? UIColor(red: 0.16, green: 0.82, blue: 0.75, alpha: 0.95)
+                        : UIColor(red: 1.0, green: 0.98, blue: 0.8, alpha: 0.95)
                 )
+                coin.magnetPull = 0
                 audio.play(.coin)
                 haptics.coin()
             }
