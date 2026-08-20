@@ -453,7 +453,9 @@ private struct UpgradeCard: View {
 }
 
 /// Full-screen reveal after opening a mystery box: the box drops in,
-/// rattles with haptic ticks, then flips over like a card to expose the prize.
+/// rattles with haptic ticks, flips over like a card — then a celebration
+/// popup card materializes around the prize with a CONGRATULATIONS banner,
+/// spinning sunburst rays, and falling confetti.
 private struct MysteryRevealOverlay: View {
     let reward: MysteryReward
     let onClose: () -> Void
@@ -463,77 +465,158 @@ private struct MysteryRevealOverlay: View {
     @State private var flipAngle: Double = 0
     @State private var revealed = false
     @State private var burst = false
-    @State private var showText = false
+    @State private var showCard = false
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.75)
+            Color.black.opacity(0.78)
                 .ignoresSafeArea()
                 .onTapGesture {
-                    if revealed { onClose() }
+                    if showCard { onClose() }
                 }
 
-            VStack(spacing: 18) {
-                ZStack {
-                    ForEach(0..<8, id: \.self) { index in
-                        Capsule()
-                            .fill(
-                                [GameTheme.gold, GameTheme.magenta, GameTheme.teal, Color(red: 0.65, green: 0.40, blue: 0.95)][index % 4]
-                                    .opacity(0.85)
-                            )
-                            .frame(width: 5, height: burst ? 34 : 8)
-                            .offset(y: burst ? -95 : -40)
-                            .rotationEffect(.degrees(Double(index) * 45))
-                            .opacity(burst ? 1 : 0)
-                    }
-
-                    // Flip card: mystery box on the front, the prize on the back.
-                    ZStack {
-                        AssetIcon(name: "mystery_cube_box_coins", size: 130, fallbackSymbol: "shippingbox.fill")
-                            .shadow(color: GameTheme.magenta.opacity(0.7), radius: 18)
-                            .opacity(revealed ? 0 : 1)
-
-                        AssetIcon(name: reward.iconAsset, size: 130, fallbackSymbol: "gift.fill")
-                            .shadow(color: GameTheme.gold.opacity(0.7), radius: 22)
-                            .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
-                            .opacity(revealed ? 1 : 0)
-                    }
-                    .rotation3DEffect(.degrees(flipAngle), axis: (x: 0, y: 1, z: 0), perspective: 0.35)
-                    .rotationEffect(.degrees(shakeAngle))
-                    .scaleEffect(boxScale)
-                }
-                .frame(height: 210)
-
-                Group {
-                    OutlinedText(text: "YOU GOT", size: 17)
-                    OutlinedText(
-                        text: reward.title,
-                        size: 27,
-                        fill: AnyShapeStyle(
-                            LinearGradient(
-                                colors: [Color(red: 1.0, green: 0.88, blue: 0.35), GameTheme.goldDeep],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                    )
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
-
-                    Button(action: onClose) {
-                        OutlinedText(text: "AWESOME!", size: 19)
-                            .frame(width: 200)
-                    }
-                    .buttonStyle(ChunkyButtonStyle(palette: .green, height: 54, cornerRadius: 16))
-                }
-                .opacity(showText ? 1 : 0)
-                .offset(y: showText ? 0 : 16)
+            if revealed {
+                ConfettiRain()
+                    .allowsHitTesting(false)
+                    .ignoresSafeArea()
             }
+
+            celebrationCard
+                .padding(.horizontal, 34)
         }
         .onAppear(perform: runRevealSequence)
     }
 
-    /// Drop-in → rattle → flip → swap face at the 90° midpoint → burst + text.
+    // MARK: Card
+
+    private var celebrationCard: some View {
+        VStack(spacing: 14) {
+            prizeStage
+
+            Group {
+                OutlinedText(text: "YOU GOT", size: 16)
+                OutlinedText(
+                    text: reward.title,
+                    size: 26,
+                    fill: AnyShapeStyle(
+                        LinearGradient(
+                            colors: [Color(red: 1.0, green: 0.88, blue: 0.35), GameTheme.goldDeep],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                )
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 16)
+
+                Button(action: onClose) {
+                    OutlinedText(text: "COLLECT!", size: 19)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(ChunkyButtonStyle(palette: .green, height: 54, cornerRadius: 16))
+                .padding(.horizontal, 26)
+                .padding(.top, 2)
+            }
+            .opacity(showCard ? 1 : 0)
+            .offset(y: showCard ? 0 : 14)
+        }
+        .padding(.top, 34)
+        .padding(.bottom, 22)
+        .frame(maxWidth: .infinity)
+        .background(cardBackground.opacity(showCard ? 1 : 0))
+        .overlay(alignment: .top) {
+            congratsBanner
+                .offset(y: -18)
+                .scaleEffect(showCard ? 1 : 0.3)
+                .opacity(showCard ? 1 : 0)
+        }
+        .scaleEffect(showCard ? 1 : 0.96)
+    }
+
+    /// Sunburst rays + flip element: box on the front, prize on the back.
+    private var prizeStage: some View {
+        ZStack {
+            if revealed {
+                SunburstRays()
+                    .frame(width: 250, height: 250)
+                    .transition(.opacity.combined(with: .scale(scale: 0.4)))
+            }
+
+            ForEach(0..<8, id: \.self) { index in
+                Capsule()
+                    .fill(
+                        [GameTheme.gold, GameTheme.magenta, GameTheme.teal, Color(red: 0.65, green: 0.40, blue: 0.95)][index % 4]
+                            .opacity(0.85)
+                    )
+                    .frame(width: 5, height: burst ? 34 : 8)
+                    .offset(y: burst ? -95 : -40)
+                    .rotationEffect(.degrees(Double(index) * 45))
+                    .opacity(burst ? 1 : 0)
+            }
+
+            ZStack {
+                AssetIcon(name: "mystery_cube_box_coins", size: 130, fallbackSymbol: "shippingbox.fill")
+                    .shadow(color: GameTheme.magenta.opacity(0.7), radius: 18)
+                    .opacity(revealed ? 0 : 1)
+
+                AssetIcon(name: reward.iconAsset, size: 130, fallbackSymbol: "gift.fill")
+                    .shadow(color: GameTheme.gold.opacity(0.7), radius: 22)
+                    .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
+                    .opacity(revealed ? 1 : 0)
+            }
+            .rotation3DEffect(.degrees(flipAngle), axis: (x: 0, y: 1, z: 0), perspective: 0.35)
+            .rotationEffect(.degrees(shakeAngle))
+            .scaleEffect(boxScale)
+        }
+        .frame(height: 200)
+        .clipped()
+    }
+
+    private var congratsBanner: some View {
+        OutlinedText(text: "CONGRATULATIONS!", size: 16)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .padding(.horizontal, 22)
+            .padding(.vertical, 8)
+            .background(
+                LinearGradient(
+                    colors: [Color(red: 0.92, green: 0.32, blue: 0.66), Color(red: 0.66, green: 0.12, blue: 0.48)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                ),
+                in: Capsule()
+            )
+            .overlay(Capsule().strokeBorder(GameTheme.gold.opacity(0.9), lineWidth: 2))
+            .shadow(color: .black.opacity(0.4), radius: 5, y: 3)
+    }
+
+    private var cardBackground: some View {
+        RoundedRectangle(cornerRadius: 26)
+            .fill(
+                LinearGradient(
+                    colors: [Color(red: 0.36, green: 0.17, blue: 0.64), Color(red: 0.16, green: 0.07, blue: 0.36)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 26)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [GameTheme.gold, GameTheme.goldDeep, GameTheme.gold],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 3
+                    )
+            )
+            .shadow(color: GameTheme.magenta.opacity(0.45), radius: 26)
+            .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
+    }
+
+    // MARK: Sequence
+
+    /// Drop-in → rattle → flip → swap face at the 90° midpoint → card + confetti.
     private func runRevealSequence() {
         withAnimation(.spring(duration: 0.4, bounce: 0.55)) { boxScale = 1 }
 
@@ -554,11 +637,97 @@ private struct MysteryRevealOverlay: View {
             // The page flip: front (box) turns over into the prize.
             withAnimation(.spring(duration: 0.6, bounce: 0.22)) { flipAngle = 180 }
             try? await Task.sleep(for: .seconds(0.26))
-            revealed = true
+            withAnimation(.spring(duration: 0.45, bounce: 0.3)) { revealed = true }
             HapticsService.shared.powerUp()
 
             withAnimation(.spring(duration: 0.5, bounce: 0.5)) { burst = true }
-            withAnimation(.spring(duration: 0.4).delay(0.12)) { showText = true }
+            withAnimation(.spring(duration: 0.5, bounce: 0.4).delay(0.1)) { showCard = true }
         }
+    }
+}
+
+/// Slowly spinning golden sunburst behind the revealed prize.
+private struct SunburstRays: View {
+    @State private var angle: Double = 0
+
+    var body: some View {
+        ZStack {
+            RadialGradient(
+                colors: [GameTheme.gold.opacity(0.35), .clear],
+                center: .center,
+                startRadius: 8,
+                endRadius: 125
+            )
+
+            ForEach(0..<12, id: \.self) { index in
+                Capsule()
+                    .fill(GameTheme.gold.opacity(index.isMultiple(of: 2) ? 0.30 : 0.16))
+                    .frame(width: 22, height: 118)
+                    .offset(y: -66)
+                    .rotationEffect(.degrees(Double(index) * 30))
+            }
+        }
+        .rotationEffect(.degrees(angle))
+        .onAppear {
+            withAnimation(.linear(duration: 14).repeatForever(autoreverses: false)) {
+                angle = 360
+            }
+        }
+    }
+}
+
+/// Continuous confetti rain across the whole overlay while the prize shows.
+private struct ConfettiRain: View {
+    private static let colors: [Color] = [
+        GameTheme.gold, GameTheme.magenta, GameTheme.teal,
+        Color(red: 0.65, green: 0.40, blue: 0.95), Color(red: 0.55, green: 0.85, blue: 0.25),
+    ]
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                ForEach(0..<26, id: \.self) { index in
+                    ConfettiPiece(
+                        color: Self.colors[index % Self.colors.count],
+                        xFraction: CGFloat((Double(index) * 0.379).truncatingRemainder(dividingBy: 1)),
+                        delay: Double(index % 9) * 0.16,
+                        duration: 2.4 + Double(index % 5) * 0.4,
+                        size: 7 + CGFloat(index % 4) * 2.5,
+                        spin: index.isMultiple(of: 2) ? 520 : -430,
+                        canvas: proxy.size
+                    )
+                }
+            }
+        }
+    }
+}
+
+/// One falling, tumbling confetti rectangle that loops forever.
+private struct ConfettiPiece: View {
+    let color: Color
+    let xFraction: CGFloat
+    let delay: Double
+    let duration: Double
+    let size: CGFloat
+    let spin: Double
+    let canvas: CGSize
+
+    @State private var falling = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 2)
+            .fill(color.opacity(0.92))
+            .frame(width: size, height: size * 0.62)
+            .rotationEffect(.degrees(falling ? spin : 0))
+            .rotation3DEffect(.degrees(falling ? 300 : 0), axis: (x: 1, y: 0.4, z: 0))
+            .position(
+                x: xFraction * canvas.width,
+                y: falling ? canvas.height + 40 : -40
+            )
+            .onAppear {
+                withAnimation(.linear(duration: duration).delay(delay).repeatForever(autoreverses: false)) {
+                    falling = true
+                }
+            }
     }
 }
