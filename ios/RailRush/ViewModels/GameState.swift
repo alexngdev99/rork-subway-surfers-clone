@@ -41,10 +41,16 @@ final class GameState {
     // Persistent values
     var bestScore: Int
     var selectedCharacterID: String
+    /// Longest single-run distance in meters (persisted record).
+    var bestDistance: Int
+    /// Highest pickup combo ever reached (persisted record).
+    var bestCombo: Int
 
     // Last run results
     var lastRunScore = 0
     var lastRunCoins = 0
+    var lastRunDistance = 0
+    var lastRunBestCombo = 0
     var lastRunWasBest = false
     var endReason: RunEndReason = .crashedIntoTrain
 
@@ -56,6 +62,8 @@ final class GameState {
     init() {
         bestScore = store.bestScore
         selectedCharacterID = store.selectedCharacterID
+        bestDistance = store.bestDistance
+        bestCombo = store.bestCombo
         meta = MetaState(legacyCoins: store.totalCoins)
     }
 
@@ -91,8 +99,14 @@ final class GameState {
         endReason = reason
         lastRunScore = score
         lastRunCoins = coins
+        lastRunDistance = distanceRun
+        lastRunBestCombo = bestComboThisRun
         lastRunWasBest = store.recordBest(score: score)
         bestScore = store.bestScore
+        store.recordDistance(distanceRun)
+        bestDistance = store.bestDistance
+        store.recordCombo(bestComboThisRun)
+        bestCombo = store.bestCombo
         paintRushActive = false
         paintRushProgress = 0
 
@@ -105,6 +119,10 @@ final class GameState {
             slides: runSlides,
             powerUps: runPowerUps
         )
+
+        // Snapshot the full save data to the on-disk backup so progress
+        // survives even if UserDefaults is lost before the next launch.
+        SaveDataService.shared.backupNow()
 
         phase = .gameOver
     }

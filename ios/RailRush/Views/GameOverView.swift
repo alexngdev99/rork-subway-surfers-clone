@@ -69,6 +69,21 @@ struct GameOverView: View {
                         }
 
                         HStack(spacing: 12) {
+                            StatWell(title: "DISTANCE") {
+                                HStack(spacing: 6) {
+                                    AssetIcon(name: "racing_flag_checkered", size: 19, fallbackSymbol: "flag.checkered")
+                                    OutlinedText(text: "\(state.lastRunDistance)m", size: 20)
+                                }
+                            }
+                            StatWell(title: "BEST COMBO") {
+                                HStack(spacing: 6) {
+                                    AssetIcon(name: "gold_star_2x_multiplier", size: 19, fallbackSymbol: "flame.fill")
+                                    OutlinedText(text: "x\(max(state.lastRunBestCombo, 1))", size: 20)
+                                }
+                            }
+                        }
+
+                        HStack(spacing: 12) {
                             Button(action: onHome) {
                                 HStack(spacing: 7) {
                                     AssetIcon(name: "cozy_house_icon", size: 24, fallbackSymbol: "house.fill")

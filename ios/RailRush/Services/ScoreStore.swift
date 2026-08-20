@@ -6,6 +6,8 @@ final class ScoreStore {
         static let bestScore = "railrush.bestScore"
         static let totalCoins = "railrush.totalCoins"
         static let selectedCharacter = "railrush.selectedCharacter"
+        static let bestDistance = "railrush.bestDistance"
+        static let bestCombo = "railrush.bestCombo"
     }
 
     private let defaults = UserDefaults.standard
@@ -25,6 +27,18 @@ final class ScoreStore {
         set { defaults.set(newValue, forKey: Keys.selectedCharacter) }
     }
 
+    /// Longest single-run distance in meters.
+    var bestDistance: Int {
+        get { defaults.integer(forKey: Keys.bestDistance) }
+        set { defaults.set(newValue, forKey: Keys.bestDistance) }
+    }
+
+    /// Highest note-pickup combo ever reached.
+    var bestCombo: Int {
+        get { defaults.integer(forKey: Keys.bestCombo) }
+        set { defaults.set(newValue, forKey: Keys.bestCombo) }
+    }
+
     /// Records a finished run's score and returns whether it set a new best.
     /// The note wallet now lives in MetaStore; `totalCoins` remains only as
     /// the legacy migration source.
@@ -32,6 +46,26 @@ final class ScoreStore {
     func recordBest(score: Int) -> Bool {
         if score > bestScore {
             bestScore = score
+            return true
+        }
+        return false
+    }
+
+    /// Records a finished run's distance; returns whether it set a new record.
+    @discardableResult
+    func recordDistance(_ meters: Int) -> Bool {
+        if meters > bestDistance {
+            bestDistance = meters
+            return true
+        }
+        return false
+    }
+
+    /// Records a finished run's best combo; returns whether it set a new record.
+    @discardableResult
+    func recordCombo(_ combo: Int) -> Bool {
+        if combo > bestCombo {
+            bestCombo = combo
             return true
         }
         return false
