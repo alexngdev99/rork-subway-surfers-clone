@@ -1,0 +1,12 @@
+{
+  "images": [
+    {
+      "filename": "beat_runner_logo.png",
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

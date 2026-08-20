@@ -255,13 +255,26 @@ struct MusicCoinIcon: View {
     }
 }
 
-/// Two-line tilted BEAT RUNNER logo shared by the loading and home screens:
-/// hot magenta-to-purple "BEAT" over gold "RUNNER", with star sparkles like
-/// the key art graffiti lockup.
+/// BEAT RUNNER graffiti logo shared by the loading, home, and character
+/// screens. Uses the generated sticker lockup (matching the SEASON HUNT art);
+/// falls back to the code-drawn two-line lockup if the image is missing.
 struct GameLogo: View {
     var size: CGFloat = 64
 
     var body: some View {
+        if let logo = UIImage(named: "beat_runner_logo") {
+            Image(uiImage: logo)
+                .resizable()
+                .scaledToFit()
+                .frame(height: size * 1.9)
+                .shadow(color: .black.opacity(0.35), radius: 0, x: 3, y: 5)
+                .rotationEffect(.degrees(-3))
+        } else {
+            drawnLockup
+        }
+    }
+
+    private var drawnLockup: some View {
         VStack(spacing: 0) {
             OutlinedText(
                 text: "BEAT",
