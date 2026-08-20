@@ -1031,7 +1031,11 @@ final class RunnerWorld {
         case .loading:
             break
         case .home:
-            updateIdleScene(dt: dt)
+            // An opaque meta screen covers the whole scene — skip idle camera
+            // work while nothing of the 3D world is visible.
+            if state.meta.route?.coversScene != true {
+                updateIdleScene(dt: dt)
+            }
         case .running:
             guard !state.isPaused else { return }
             if crashHandled {

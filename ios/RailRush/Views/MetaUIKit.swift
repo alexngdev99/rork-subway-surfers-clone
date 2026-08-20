@@ -272,6 +272,10 @@ struct MetaScreen<Content: View>: View {
 
             content
         }
+        // Flatten the whole screen into one layer so the crossfade between
+        // bottom-nav tabs fades a single surface instead of hundreds of
+        // individually composited labels and stickers.
+        .compositingGroup()
     }
 }
 
@@ -341,7 +345,12 @@ struct BottomNavBar: View {
                     tab: tab,
                     isActive: tab == active,
                     badge: badgeCount(for: tab),
-                    action: { onSelect(tab) }
+                    action: {
+                        // Re-tapping the tab that's already open would rebuild
+                        // the whole screen for nothing — ignore it.
+                        guard meta.route != tab.route else { return }
+                        onSelect(tab)
+                    }
                 )
             }
         }

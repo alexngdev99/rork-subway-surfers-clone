@@ -103,8 +103,8 @@ struct HomeView: View {
             .padding(.bottom, 4)
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
-                pulse = true
+            if meta.route?.coversScene != true {
+                startPulse()
             }
             meta.refreshTimedContent()
             // Auto-open the login sheet once per session on a new day.
@@ -115,6 +115,25 @@ struct HomeView: View {
                     if meta.route == nil { meta.route = .dailyLogin }
                 }
             }
+        }
+        // The repeat-forever glow re-renders its blurred shadows every frame;
+        // freeze it while an opaque meta screen covers the home hub so nothing
+        // keeps animating invisibly behind the overlay.
+        .onChange(of: meta.route) { _, newRoute in
+            if newRoute?.coversScene == true {
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) { pulse = false }
+            } else if !pulse {
+                startPulse()
+            }
+        }
+    }
+
+    /// Kicks off the TAP TO PLAY glow loop.
+    private func startPulse() {
+        withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+            pulse = true
         }
     }
 

@@ -125,6 +125,12 @@ enum MetaRoute: Equatable {
     case me
     case events
     case settings
+
+    /// True for opaque full-screen destinations that completely cover the
+    /// home hub and the 3D scene (everything except the reward dialogs).
+    var coversScene: Bool {
+        self != .dailyLogin && self != .freeRewards
+    }
 }
 
 /// A purchasable pile of notes, priced in keys (soft-currency store).

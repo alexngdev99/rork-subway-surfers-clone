@@ -23,6 +23,9 @@ struct ContentView: View {
                         onRun: { world.startRun() }
                     )
                     .transition(.opacity)
+                    // Fully covered by an opaque meta screen — fade the home
+                    // layer out so it stops compositing behind the overlay.
+                    .opacity(gameState.meta.route?.coversScene == true ? 0 : 1)
 
                     metaOverlay(world: world)
                 case .running:
@@ -74,41 +77,64 @@ struct ContentView: View {
         let meta = gameState.meta
 
         if let route = meta.route {
-            Group {
-                switch route {
-                case .missions:
-                    MissionsView(meta: meta)
-                case .store(let tab):
-                    StoreView(meta: meta, initialTab: tab)
-                case .characters:
-                    CharactersView(
-                        meta: meta,
-                        selectedID: gameState.selectedCharacterID,
-                        onSelect: { world.selectCharacter($0) }
-                    )
-                case .me:
-                    MeView(state: gameState, meta: meta)
-                case .events:
-                    EventsView(meta: meta)
-                case .settings:
-                    SettingsView(meta: meta)
-                case .dailyLogin:
-                    DailyLoginView(meta: meta) { meta.route = nil }
-                case .freeRewards:
-                    FreeRewardsView(meta: meta) { meta.route = nil }
+            if route.coversScene {
+                // Stable host identity: switching bottom-nav tabs swaps the
+                // content inside with a quick crossfade instead of flying two
+                // heavy full screens past each other at once.
+                MetaRouteHost(route: route, state: gameState, world: world)
+                    .zIndex(1)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else {
+                Group {
+                    if route == .dailyLogin {
+                        DailyLoginView(meta: meta) { meta.route = nil }
+                    } else {
+                        FreeRewardsView(meta: meta) { meta.route = nil }
+                    }
                 }
+                .zIndex(1)
+                .transition(.opacity)
             }
-            .zIndex(1)
-            .transition(
-                isDialogRoute(route)
-                    ? AnyTransition.opacity
-                    : AnyTransition.move(edge: .bottom).combined(with: .opacity)
-            )
         }
     }
+}
 
-    private func isDialogRoute(_ route: MetaRoute) -> Bool {
-        route == .dailyLogin || route == .freeRewards
+/// Hosts full-screen meta destinations behind one stable view identity.
+/// Opening from home keeps the fly-up transition, but tab-to-tab switches only
+/// crossfade the inner content — far cheaper than transitioning two complete
+/// screens (graffiti wall + dozens of outlined labels each) simultaneously.
+private struct MetaRouteHost: View {
+    let route: MetaRoute
+    let state: GameState
+    let world: RunnerWorld
+
+    var body: some View {
+        ZStack {
+            switch route {
+            case .missions:
+                MissionsView(meta: state.meta)
+            case .store(let tab):
+                StoreView(meta: state.meta, initialTab: tab)
+                    .id(tab)
+            case .characters:
+                CharactersView(
+                    meta: state.meta,
+                    selectedID: state.selectedCharacterID,
+                    onSelect: { world.selectCharacter($0) }
+                )
+            case .me:
+                MeView(state: state, meta: state.meta)
+            case .events:
+                EventsView(meta: state.meta)
+            case .settings:
+                SettingsView(meta: state.meta)
+            case .dailyLogin, .freeRewards:
+                EmptyView()
+            }
+        }
+        // Snappy, opacity-only swap between tabs — overrides the heavier
+        // outer spring for content changes inside the host.
+        .animation(.easeOut(duration: 0.18), value: route)
     }
 }
 
