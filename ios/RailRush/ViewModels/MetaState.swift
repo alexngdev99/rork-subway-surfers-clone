@@ -112,6 +112,7 @@ final class MetaState {
 
     init(legacyCoins: Int) {
         store.migrateWalletIfNeeded(legacyCoins: legacyCoins)
+        store.topUpKeysIfNeeded()
 
         notes = store.notes
         keys = store.keys

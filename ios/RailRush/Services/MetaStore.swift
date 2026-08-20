@@ -5,6 +5,7 @@ import Foundation
 final class MetaStore {
     private enum Keys {
         static let walletMigrated = "beatrunner.walletMigrated"
+        static let keysTopUp = "beatrunner.keysTopUp"
         static let notes = "beatrunner.notes"
         static let keys = "beatrunner.keys"
         static let sprays = "beatrunner.sprays"
@@ -44,6 +45,14 @@ final class MetaStore {
         // Friendly head start so the store is explorable on day one.
         defaults.set(5, forKey: Keys.keys)
         defaults.set(3, forKey: Keys.sprays)
+    }
+
+    /// One-time key top-up so the whole store is testable (existing saves
+    /// included). Never lowers a balance that's already above the floor.
+    func topUpKeysIfNeeded(to floor: Int = 100) {
+        guard !defaults.bool(forKey: Keys.keysTopUp) else { return }
+        defaults.set(true, forKey: Keys.keysTopUp)
+        if keys < floor { keys = floor }
     }
 
     var notes: Int {
