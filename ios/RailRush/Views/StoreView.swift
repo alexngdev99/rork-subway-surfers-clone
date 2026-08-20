@@ -452,18 +452,26 @@ private struct UpgradeCard: View {
     }
 }
 
-/// Full-screen reveal after opening a mystery box.
+/// Full-screen reveal after opening a mystery box: the box drops in,
+/// rattles with haptic ticks, then flips over like a card to expose the prize.
 private struct MysteryRevealOverlay: View {
     let reward: MysteryReward
     let onClose: () -> Void
 
-    @State private var appeared = false
+    @State private var boxScale: CGFloat = 0.2
+    @State private var shakeAngle: Double = 0
+    @State private var flipAngle: Double = 0
+    @State private var revealed = false
+    @State private var burst = false
+    @State private var showText = false
 
     var body: some View {
         ZStack {
             Color.black.opacity(0.75)
                 .ignoresSafeArea()
-                .onTapGesture(perform: onClose)
+                .onTapGesture {
+                    if revealed { onClose() }
+                }
 
             VStack(spacing: 18) {
                 ZStack {
@@ -473,44 +481,84 @@ private struct MysteryRevealOverlay: View {
                                 [GameTheme.gold, GameTheme.magenta, GameTheme.teal, Color(red: 0.65, green: 0.40, blue: 0.95)][index % 4]
                                     .opacity(0.85)
                             )
-                            .frame(width: 5, height: appeared ? 34 : 8)
-                            .offset(y: appeared ? -95 : -40)
+                            .frame(width: 5, height: burst ? 34 : 8)
+                            .offset(y: burst ? -95 : -40)
                             .rotationEffect(.degrees(Double(index) * 45))
+                            .opacity(burst ? 1 : 0)
                     }
 
-                    AssetIcon(name: reward.iconAsset, size: 130, fallbackSymbol: "gift.fill")
-                        .scaleEffect(appeared ? 1 : 0.3)
-                        .rotationEffect(.degrees(appeared ? 0 : -20))
-                        .shadow(color: GameTheme.gold.opacity(0.7), radius: 22)
+                    // Flip card: mystery box on the front, the prize on the back.
+                    ZStack {
+                        AssetIcon(name: "mystery_cube_box_coins", size: 130, fallbackSymbol: "shippingbox.fill")
+                            .shadow(color: GameTheme.magenta.opacity(0.7), radius: 18)
+                            .opacity(revealed ? 0 : 1)
+
+                        AssetIcon(name: reward.iconAsset, size: 130, fallbackSymbol: "gift.fill")
+                            .shadow(color: GameTheme.gold.opacity(0.7), radius: 22)
+                            .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
+                            .opacity(revealed ? 1 : 0)
+                    }
+                    .rotation3DEffect(.degrees(flipAngle), axis: (x: 0, y: 1, z: 0), perspective: 0.35)
+                    .rotationEffect(.degrees(shakeAngle))
+                    .scaleEffect(boxScale)
                 }
                 .frame(height: 210)
 
-                OutlinedText(text: "YOU GOT", size: 17)
-                OutlinedText(
-                    text: reward.title,
-                    size: 27,
-                    fill: AnyShapeStyle(
-                        LinearGradient(
-                            colors: [Color(red: 1.0, green: 0.88, blue: 0.35), GameTheme.goldDeep],
-                            startPoint: .top,
-                            endPoint: .bottom
+                Group {
+                    OutlinedText(text: "YOU GOT", size: 17)
+                    OutlinedText(
+                        text: reward.title,
+                        size: 27,
+                        fill: AnyShapeStyle(
+                            LinearGradient(
+                                colors: [Color(red: 1.0, green: 0.88, blue: 0.35), GameTheme.goldDeep],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
                         )
                     )
-                )
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
 
-                Button(action: onClose) {
-                    OutlinedText(text: "AWESOME!", size: 19)
-                        .frame(width: 200)
+                    Button(action: onClose) {
+                        OutlinedText(text: "AWESOME!", size: 19)
+                            .frame(width: 200)
+                    }
+                    .buttonStyle(ChunkyButtonStyle(palette: .green, height: 54, cornerRadius: 16))
                 }
-                .buttonStyle(ChunkyButtonStyle(palette: .green, height: 54, cornerRadius: 16))
+                .opacity(showText ? 1 : 0)
+                .offset(y: showText ? 0 : 16)
             }
         }
-        .onAppear {
-            withAnimation(.spring(duration: 0.55, bounce: 0.5)) {
-                appeared = true
+        .onAppear(perform: runRevealSequence)
+    }
+
+    /// Drop-in → rattle → flip → swap face at the 90° midpoint → burst + text.
+    private func runRevealSequence() {
+        withAnimation(.spring(duration: 0.4, bounce: 0.55)) { boxScale = 1 }
+
+        Task {
+            try? await Task.sleep(for: .seconds(0.45))
+
+            // Rattle the box a few times to build suspense.
+            for _ in 0..<3 {
+                HapticsService.shared.uiTap()
+                withAnimation(.easeInOut(duration: 0.07)) { shakeAngle = 8 }
+                try? await Task.sleep(for: .seconds(0.07))
+                withAnimation(.easeInOut(duration: 0.07)) { shakeAngle = -8 }
+                try? await Task.sleep(for: .seconds(0.07))
             }
+            withAnimation(.easeInOut(duration: 0.07)) { shakeAngle = 0 }
+            try? await Task.sleep(for: .seconds(0.18))
+
+            // The page flip: front (box) turns over into the prize.
+            withAnimation(.spring(duration: 0.6, bounce: 0.22)) { flipAngle = 180 }
+            try? await Task.sleep(for: .seconds(0.26))
+            revealed = true
+            HapticsService.shared.powerUp()
+
+            withAnimation(.spring(duration: 0.5, bounce: 0.5)) { burst = true }
+            withAnimation(.spring(duration: 0.4).delay(0.12)) { showText = true }
         }
     }
 }
