@@ -20,6 +20,9 @@ final class MetaStore {
         static let lastFreeReward = "beatrunner.lastFreeReward"
         static let musicOn = "beatrunner.musicOn"
         static let sfxOn = "beatrunner.sfxOn"
+        static let musicVolume = "beatrunner.musicVolume"
+        static let sfxVolume = "beatrunner.sfxVolume"
+        static let musicTrack = "beatrunner.musicTrack"
         static let hapticsOn = "beatrunner.hapticsOn"
         static let batterySaver = "beatrunner.batterySaver"
         static let totalRuns = "beatrunner.totalRuns"
@@ -140,6 +143,22 @@ final class MetaStore {
     var batterySaver: Bool {
         get { defaults.bool(forKey: Keys.batterySaver) }
         set { defaults.set(newValue, forKey: Keys.batterySaver) }
+    }
+
+    var musicVolume: Double {
+        get { defaults.object(forKey: Keys.musicVolume) as? Double ?? 0.7 }
+        set { defaults.set(newValue, forKey: Keys.musicVolume) }
+    }
+
+    var sfxVolume: Double {
+        get { defaults.object(forKey: Keys.sfxVolume) as? Double ?? 1.0 }
+        set { defaults.set(newValue, forKey: Keys.sfxVolume) }
+    }
+
+    /// Selected soundtrack resource name (empty = playlist default).
+    var musicTrackID: String {
+        get { defaults.string(forKey: Keys.musicTrack) ?? "" }
+        set { defaults.set(newValue, forKey: Keys.musicTrack) }
     }
 
     // MARK: Lifetime stats

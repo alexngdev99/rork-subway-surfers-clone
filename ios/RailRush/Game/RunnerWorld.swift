@@ -214,6 +214,8 @@ final class RunnerWorld {
 
         guard state.phase == .loading else { return }
         state.phase = .home
+        // Kick off the festival playlist on the home hub.
+        audio.startMusic()
     }
 
     private func setupCameraAndLights(in content: RealityViewCameraContent) {
@@ -745,7 +747,8 @@ final class RunnerWorld {
         inspectorContainer.isEnabled = false
         dogContainer.isEnabled = false
         playerContainer.position = [0, 0, 0]
-        audio.stopMusic()
+        // The festival soundtrack keeps playing on the home hub.
+        audio.startMusic()
     }
 
     func togglePause() {

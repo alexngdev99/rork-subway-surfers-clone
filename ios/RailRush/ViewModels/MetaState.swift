@@ -74,6 +74,35 @@ final class MetaState {
 
     var batterySaver: Bool { didSet { store.batterySaver = batterySaver } }
 
+    /// Music volume 0...1, applied live to the music manager.
+    var musicVolume: Double {
+        didSet {
+            store.musicVolume = musicVolume
+            AudioService.shared.musicVolume = Float(musicVolume)
+        }
+    }
+
+    /// Sound-effects volume 0...1.
+    var sfxVolume: Double {
+        didSet {
+            store.sfxVolume = sfxVolume
+            AudioService.shared.sfxVolume = Float(sfxVolume)
+        }
+    }
+
+    /// Currently selected soundtrack (resource name).
+    var musicTrackID: String {
+        didSet {
+            store.musicTrackID = musicTrackID
+            AudioService.shared.selectTrack(id: musicTrackID)
+        }
+    }
+
+    /// Steps the playlist forward/backward from the settings screen.
+    func stepMusicTrack(_ delta: Int) {
+        musicTrackID = AudioService.shared.stepTrack(delta).id
+    }
+
     // MARK: Navigation
 
     /// Full-screen meta destination layered over the home hub (nil → home).
@@ -111,9 +140,16 @@ final class MetaState {
         sfxOn = store.sfxOn
         hapticsOn = store.hapticsOn
         batterySaver = store.batterySaver
+        musicVolume = store.musicVolume
+        sfxVolume = store.sfxVolume
+        let savedTrack = store.musicTrackID
+        musicTrackID = savedTrack.isEmpty ? (AudioService.playlist.first?.id ?? "") : savedTrack
 
         AudioService.shared.musicEnabled = musicOn
         AudioService.shared.sfxEnabled = sfxOn
+        AudioService.shared.musicVolume = Float(musicVolume)
+        AudioService.shared.sfxVolume = Float(sfxVolume)
+        AudioService.shared.setInitialTrack(id: musicTrackID)
         HapticsService.shared.isEnabled = hapticsOn
 
         refreshTimedContent()

@@ -349,12 +349,23 @@ struct SettingsView: View {
                             subtitle: "Toggle background music",
                             isOn: $meta.musicOn
                         )
+
+                        SoundtrackPanel(meta: meta)
+
                         SettingToggleRow(
                             symbol: "speaker.wave.2.fill",
                             symbolColors: [GameTheme.gold, GameTheme.goldDeep],
                             title: "SOUND EFFECTS",
                             subtitle: "Toggle game sound effects",
                             isOn: $meta.sfxOn
+                        )
+
+                        VolumeSliderRow(
+                            symbol: "speaker.wave.3.fill",
+                            symbolColors: [GameTheme.gold, GameTheme.goldDeep],
+                            title: "SFX VOLUME",
+                            value: $meta.sfxVolume,
+                            enabled: meta.sfxOn
                         )
                         SettingToggleRow(
                             symbol: "iphone.radiowaves.left.and.right",
@@ -433,6 +444,178 @@ struct SettingsView: View {
         Image(systemName: "chevron.right")
             .font(.system(size: 16, weight: .black))
             .foregroundStyle(.white.opacity(0.8))
+    }
+}
+
+/// Music manager panel: now-playing card with track stepper + volume slider.
+private struct SoundtrackPanel: View {
+    @Bindable var meta: MetaState
+
+    private var currentTrack: MusicTrack {
+        AudioService.playlist.first(where: { $0.id == meta.musicTrackID })
+            ?? AudioService.playlist[0]
+    }
+
+    private var trackNumber: Int {
+        (AudioService.playlist.firstIndex(where: { $0.id == meta.musicTrackID }) ?? 0) + 1
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "radio.fill")
+                    .font(.system(size: 13, weight: .black))
+                    .foregroundStyle(GameTheme.magenta)
+                Text("FESTIVAL SOUNDTRACK")
+                    .font(.system(size: 12, weight: .black, design: .rounded))
+                    .foregroundStyle(Color(red: 0.72, green: 0.60, blue: 0.95))
+                Spacer()
+                Text("\(trackNumber)/\(AudioService.playlist.count)")
+                    .font(.system(size: 12, weight: .black, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.55))
+            }
+
+            HStack(spacing: 10) {
+                TrackStepButton(symbol: "backward.fill") {
+                    meta.stepMusicTrack(-1)
+                    HapticsService.shared.laneChange()
+                }
+
+                VStack(spacing: 3) {
+                    // Animated equalizer bars flank the title while music is on.
+                    HStack(spacing: 7) {
+                        EqualizerBars(active: meta.musicOn)
+                        OutlinedText(text: currentTrack.title, size: 17)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                        EqualizerBars(active: meta.musicOn)
+                    }
+                    Text(currentTrack.genre.uppercased())
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .foregroundStyle(GameTheme.gold)
+                        .tracking(1.2)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 9)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(red: 0.10, green: 0.05, blue: 0.24).opacity(0.9))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .strokeBorder(GameTheme.magenta.opacity(0.45), lineWidth: 1.5)
+                        )
+                )
+
+                TrackStepButton(symbol: "forward.fill") {
+                    meta.stepMusicTrack(1)
+                    HapticsService.shared.laneChange()
+                }
+            }
+
+            VolumeSlider(
+                symbol: "music.quarternote.3",
+                value: $meta.musicVolume,
+                enabled: meta.musicOn,
+                tint: GameTheme.magenta
+            )
+        }
+        .padding(12)
+        .background(settingRowBackground)
+        .opacity(meta.musicOn ? 1 : 0.6)
+    }
+}
+
+private struct TrackStepButton: View {
+    let symbol: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 15, weight: .black))
+                .foregroundStyle(.white)
+                .shadow(color: GameTheme.outline.opacity(0.9), radius: 0, y: 1.5)
+                .frame(width: 44, height: 44)
+        }
+        .buttonStyle(ChunkyButtonStyle(palette: .purple, height: 44, cornerRadius: 13))
+        .frame(width: 44)
+    }
+}
+
+/// Tiny 3-bar equalizer that bounces while music is enabled.
+private struct EqualizerBars: View {
+    let active: Bool
+    @State private var animating = false
+
+    private let heights: [CGFloat] = [7, 13, 9]
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<3, id: \.self) { index in
+                Capsule()
+                    .fill(GameTheme.gold)
+                    .frame(width: 3, height: animating && active ? heights[(index + 1) % 3] : heights[index])
+                    .animation(
+                        active
+                            ? .easeInOut(duration: 0.38).repeatForever(autoreverses: true).delay(Double(index) * 0.12)
+                            : .default,
+                        value: animating
+                    )
+            }
+        }
+        .frame(height: 14)
+        .opacity(active ? 1 : 0.35)
+        .onAppear { animating = true }
+    }
+}
+
+/// Standalone volume row styled like the setting rows (for SFX).
+private struct VolumeSliderRow: View {
+    let symbol: String
+    let symbolColors: [Color]
+    let title: String
+    @Binding var value: Double
+    let enabled: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            SettingIconTile(symbol: symbol, colors: symbolColors)
+
+            VStack(alignment: .leading, spacing: 6) {
+                OutlinedText(text: title, size: 16)
+                VolumeSlider(symbol: nil, value: $value, enabled: enabled, tint: GameTheme.gold)
+            }
+        }
+        .padding(12)
+        .background(settingRowBackground)
+        .opacity(enabled ? 1 : 0.6)
+    }
+}
+
+/// Chunky volume slider with a live percent readout.
+private struct VolumeSlider: View {
+    let symbol: String?
+    @Binding var value: Double
+    let enabled: Bool
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 10) {
+            if let symbol {
+                Image(systemName: symbol)
+                    .font(.system(size: 14, weight: .black))
+                    .foregroundStyle(tint)
+                    .frame(width: 22)
+            }
+
+            Slider(value: $value, in: 0...1, step: 0.05)
+                .tint(tint)
+                .disabled(!enabled)
+
+            OutlinedText(text: "\(Int((value * 100).rounded()))%", size: 14)
+                .frame(width: 48, alignment: .trailing)
+                .monospacedDigit()
+        }
     }
 }
 
