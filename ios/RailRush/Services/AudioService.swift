@@ -43,6 +43,10 @@ final class AudioService: NSObject {
 
     var currentTrack: MusicTrack { Self.playlist[currentTrackIndex] }
 
+    /// Notifies the meta layer when the playlist rotates on its own (track
+    /// finished naturally) so the now-playing UI and saved track stay in sync.
+    var onTrackAutoAdvanced: ((MusicTrack) -> Void)?
+
     // MARK: Settings
 
     /// Settings toggles: music and SFX are muted independently.
@@ -177,6 +181,7 @@ final class AudioService: NSObject {
         guard musicSessionActive else { return }
         currentTrackIndex = (currentTrackIndex + 1) % Self.playlist.count
         playTrack(at: currentTrackIndex, fromStart: true)
+        onTrackAutoAdvanced?(currentTrack)
     }
 
     private func applyMusicVolume() {

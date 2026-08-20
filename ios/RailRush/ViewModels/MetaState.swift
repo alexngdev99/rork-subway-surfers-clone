@@ -152,6 +152,12 @@ final class MetaState {
         AudioService.shared.setInitialTrack(id: musicTrackID)
         HapticsService.shared.isEnabled = hapticsOn
 
+        // Keep the now-playing panel and saved track in sync when the
+        // playlist rotates on its own after a track finishes.
+        AudioService.shared.onTrackAutoAdvanced = { [weak self] track in
+            self?.musicTrackID = track.id
+        }
+
         refreshTimedContent()
     }
 
