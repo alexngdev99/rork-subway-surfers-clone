@@ -12,13 +12,15 @@ enum GamePhase {
 enum PowerUpType: CaseIterable {
     case magnet
     case doubleScore
+    case superJump
     case jetpack
 
     var displayName: String {
         switch self {
         case .magnet: return "Note Magnet"
         case .doubleScore: return "2x Beat"
-        case .jetpack: return "Rocket Kicks"
+        case .superJump: return "Rocket Kicks"
+        case .jetpack: return "Jetpack"
         }
     }
 
@@ -26,7 +28,8 @@ enum PowerUpType: CaseIterable {
         switch self {
         case .magnet: return "wand.and.stars"
         case .doubleScore: return "music.note"
-        case .jetpack: return "bolt.fill"
+        case .superJump: return "bolt.fill"
+        case .jetpack: return "flame.fill"
         }
     }
 
@@ -34,6 +37,7 @@ enum PowerUpType: CaseIterable {
         switch self {
         case .magnet: return 8
         case .doubleScore: return 8
+        case .superJump: return 8
         case .jetpack: return 6
         }
     }

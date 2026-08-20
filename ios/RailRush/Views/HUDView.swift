@@ -240,6 +240,7 @@ private struct PowerUpBadge: View {
         switch type {
         case .magnet: return Color(red: 0.06, green: 0.62, blue: 0.58)
         case .doubleScore: return Color(red: 0.55, green: 0.24, blue: 0.85)
+        case .superJump: return Color(red: 0.88, green: 0.62, blue: 0.02)
         case .jetpack: return Color(red: 0.95, green: 0.45, blue: 0.08)
         }
     }

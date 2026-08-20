@@ -144,11 +144,12 @@ enum GeneratedAssets {
 
     /// Floating pickup models on the track. nil resource name → procedural orb
     /// fallback. BEAT RUNNER set: spray paint can (note magnet), retro boombox
-    /// (2x beat), glowing sneaker (rocket kicks / jetpack). All pickups Y-spin
-    /// on the track so no static yaw correction is applied.
+    /// (2x beat), glowing sneaker (Rocket Kicks super jump), wearable jetpack
+    /// (flight). All pickups Y-spin on the track so no static yaw correction
+    /// is applied.
     static let magnetPickupModel: String? = "spray_paint_can"
     static let doubleScorePickupModel: String? = "retro_boombox"
-    static let jetpackPickupModel: String? = "glowing_sneaker"
+    static let superJumpPickupModel: String? = "glowing_sneaker"
 
     // MARK: Inspector animation resource names
 

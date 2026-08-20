@@ -151,6 +151,12 @@ final class RunnerWorld {
     /// Keeps the hang pose + prop visible during the descent after the
     /// jetpack expires, until the runner touches the ground.
     private var jetpackVisualsActive = false
+    /// Takeoff velocity of the current jump — drives the fallback flip arc so
+    /// Rocket Kicks super jumps still complete exactly one rotation.
+    private var jumpTakeoffVelocity: Float = WorldConfig.jumpVelocity
+    /// Rocket Kicks: jump velocity multiplier while the sneaker power-up is
+    /// active — high enough to clear a full train (apex ≈ 4m, trains ≈ 2.8m).
+    private static let superJumpFactor: Float = 1.65
     private var inspectorGraceTimer: Float = 0
     private var inspectorTargetZ: Float = 8.5
     private var inspectorIntroTimer: Float = 0
@@ -621,7 +627,8 @@ final class RunnerWorld {
         switch type {
         case .magnet: return GeneratedAssets.magnetPickupModel
         case .doubleScore: return GeneratedAssets.doubleScorePickupModel
-        case .jetpack: return GeneratedAssets.jetpackPickupModel ?? GeneratedAssets.jetpackModel
+        case .superJump: return GeneratedAssets.superJumpPickupModel
+        case .jetpack: return GeneratedAssets.jetpackModel
         }
     }
 
@@ -799,12 +806,28 @@ final class RunnerWorld {
         isJumping = true
         isSliding = false
         slideTimer = 0
-        // Super Sneakers upgrade: higher jump per level.
-        verticalVelocity = WorldConfig.jumpVelocity * state.meta.sneakerJumpBoost
+        // Super Sneakers upgrade: higher jump per level. Rocket Kicks power-up
+        // multiplies on top — tall enough to sail clean over a train.
+        let rocketKicks = state.activePowerUp == .superJump
+        var takeoff = WorldConfig.jumpVelocity * state.meta.sneakerJumpBoost
+        if rocketKicks { takeoff *= Self.superJumpFactor }
+        verticalVelocity = takeoff
+        jumpTakeoffVelocity = takeoff
         state.runJumps += 1
         haptics.jump()
         audio.play(.jump)
-        runnerAnimator?.playOnce(activeCharacter.jump, restoreAfter: .milliseconds(750))
+        if rocketKicks {
+            // Sparkle kick-off burst at the sneakers.
+            spawnPickupBurst(
+                at: [playerX, 0.25, 0],
+                color: UIColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 0.95),
+                accent: UIColor(red: 1.0, green: 0.35, blue: 0.45, alpha: 0.95),
+                scale: 1.4
+            )
+        }
+        // Scale the jump clip window with actual airtime (2v/g).
+        let airtimeMs = Int(2 * takeoff / -WorldConfig.gravity * 1000) + 80
+        runnerAnimator?.playOnce(activeCharacter.jump, restoreAfter: .milliseconds(max(750, airtimeMs)))
     }
 
     private func slide() {
@@ -952,8 +975,8 @@ final class RunnerWorld {
         guard activeCharacter.jump == nil else { return }
         guard let runtime = playerContainer.findEntity(named: "generated_model_runtime") else { return }
         if isJumping, !jetpackActive {
-            let span = 2 * WorldConfig.jumpVelocity
-            let progress = min(1, max(0, (WorldConfig.jumpVelocity - verticalVelocity) / span))
+            let span = 2 * jumpTakeoffVelocity
+            let progress = min(1, max(0, (jumpTakeoffVelocity - verticalVelocity) / span))
             let flip = simd_quatf(angle: -2 * .pi * progress, axis: [1, 0, 0])
             let pivot = SIMD3<Float>(0, 0.95, 0)
             runtime.orientation = flip
@@ -1269,7 +1292,7 @@ final class RunnerWorld {
             slideTimer = 0
             setJetpackVisuals(active: true)
             setJetpackThrust(active: true)
-        case .magnet:
+        case .magnet, .superJump:
             break
         }
     }
@@ -1281,6 +1304,7 @@ final class RunnerWorld {
         switch type {
         case .magnet: return UIColor(red: 0.16, green: 0.82, blue: 0.75, alpha: 0.95)
         case .doubleScore: return UIColor(red: 0.72, green: 0.35, blue: 0.98, alpha: 0.95)
+        case .superJump: return UIColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 0.95)
         case .jetpack: return UIColor(red: 1.0, green: 0.52, blue: 0.14, alpha: 0.95)
         }
     }

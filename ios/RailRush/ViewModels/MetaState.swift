@@ -387,12 +387,13 @@ final class MetaState {
 
     // MARK: Gameplay effect scaling
 
-    /// Duration multiplier for timed power-ups (magnet / 2x / jetpack).
+    /// Duration multiplier for timed power-ups (magnet / 2x / sneakers / jetpack).
     func durationScale(for type: PowerUpType) -> Float {
         let kind: UpgradeKind
         switch type {
         case .magnet: kind = .magnet
         case .doubleScore: kind = .multiplier
+        case .superJump: kind = .sneakers
         case .jetpack: kind = .jetpack
         }
         return 1 + 0.18 * Float(level(of: kind) - 1)

@@ -1038,6 +1038,7 @@ enum TrackBuilder {
         switch type {
         case .magnet: color = UIColor(red: 0.2, green: 0.55, blue: 1.0, alpha: 1)
         case .doubleScore: color = UIColor(red: 1.0, green: 0.75, blue: 0.1, alpha: 1)
+        case .superJump: color = UIColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 1)
         case .jetpack: color = UIColor(red: 1.0, green: 0.4, blue: 0.15, alpha: 1)
         }
         let orb = ModelEntity(
