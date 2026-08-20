@@ -119,6 +119,16 @@ final class AudioService: NSObject {
         playTrack(at: currentTrackIndex, fromStart: musicPlayer == nil)
     }
 
+    /// Run kickoff: advances to the next playlist track and plays it from the
+    /// beginning so every run starts with fresh start-game energy. Notifies the
+    /// meta layer so the now-playing UI and saved track stay in sync.
+    func startRunMusic() {
+        musicSessionActive = true
+        currentTrackIndex = (currentTrackIndex + 1) % Self.playlist.count
+        playTrack(at: currentTrackIndex, fromStart: true)
+        onTrackAutoAdvanced?(currentTrack)
+    }
+
     func stopMusic() {
         musicSessionActive = false
         musicPlayer?.stop()

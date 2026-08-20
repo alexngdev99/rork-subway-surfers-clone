@@ -56,6 +56,73 @@ final class CoinNode {
     }
 }
 
+/// Color/size presets for pooled pickup bursts. Each preset's particle
+/// system is fully configured at load time, so igniting a burst never
+/// rebuilds emitter colors — the main hitch source when the magnet vacuumed
+/// a whole coin chain in a single frame.
+enum BurstStyle: CaseIterable {
+    case coinGold
+    case coinMagnet
+    case magnetGrab
+    case spray
+    case powerMagnet
+    case powerDouble
+    case powerJump
+    case powerJetpack
+    /// Rocket Kicks takeoff sparkle at the sneakers.
+    case superJumpKick
+
+    /// Primary spark color.
+    var color: UIColor {
+        switch self {
+        case .coinGold, .coinMagnet, .powerJump, .superJumpKick:
+            return UIColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 0.95)
+        case .magnetGrab, .powerMagnet:
+            return UIColor(red: 0.16, green: 0.82, blue: 0.75, alpha: 0.95)
+        case .spray, .powerDouble:
+            return UIColor(red: 0.72, green: 0.35, blue: 0.98, alpha: 0.95)
+        case .powerJetpack:
+            return UIColor(red: 1.0, green: 0.52, blue: 0.14, alpha: 0.95)
+        }
+    }
+
+    /// Secondary randomized spark color.
+    var accent: UIColor {
+        switch self {
+        case .coinGold:
+            return UIColor(red: 1.0, green: 0.98, blue: 0.8, alpha: 0.95)
+        case .coinMagnet, .spray:
+            return UIColor(red: 0.16, green: 0.82, blue: 0.75, alpha: 0.95)
+        case .magnetGrab:
+            return UIColor(red: 0.8, green: 1.0, blue: 0.96, alpha: 0.95)
+        case .powerMagnet, .powerDouble, .powerJump, .powerJetpack:
+            return UIColor(white: 1.0, alpha: 0.95)
+        case .superJumpKick:
+            return UIColor(red: 1.0, green: 0.35, blue: 0.45, alpha: 0.95)
+        }
+    }
+
+    /// Burst size multiplier (particle speed + size).
+    var scale: Float {
+        switch self {
+        case .magnetGrab: return 0.45
+        case .powerMagnet, .powerDouble, .powerJump, .powerJetpack: return 1.7
+        case .superJumpKick: return 1.4
+        default: return 1
+        }
+    }
+
+    /// Pool entities reserved for this preset.
+    var poolSize: Int {
+        switch self {
+        case .coinGold: return 6
+        case .coinMagnet, .magnetGrab: return 5
+        case .spray: return 3
+        default: return 1
+        }
+    }
+}
+
 /// A pooled one-shot particle burst played when a pickup is collected.
 final class BurstNode {
     let entity: Entity
@@ -131,7 +198,12 @@ final class RunnerWorld {
     /// Collectible spray cans that charge the Paint Rush meter.
     private var sprayPool: [CoinNode] = []
     private var powerUpPools: [PowerUpType: [PowerUpNode]] = [:]
-    private var burstPool: [BurstNode] = []
+    private var burstPools: [BurstStyle: [BurstNode]] = [:]
+    /// Per-frame cap on newly ignited bursts so chain pickups stay cheap.
+    private var burstSpawnBudget = 0
+    /// Cooldowns spacing out coin ding sounds / haptic taps in chain pickups.
+    private var coinSfxTimer: Float = 0
+    private var coinHapticTimer: Float = 0
 
     // Player simulation state
     private var laneIndex = 1
@@ -497,22 +569,27 @@ final class RunnerWorld {
         trail.components.set(particles)
     }
 
-    /// Radial sparkle burst reused for coin and power-up pickups.
-    private static func makePickupBurst() -> Entity {
+    /// Radial sparkle burst reused for coin and power-up pickups. Fully
+    /// configured up front (color, speed, size) so spawns never rebuild it.
+    private static func makePickupBurst(style: BurstStyle) -> Entity {
         let burst = Entity()
         var particles = ParticleEmitterComponent()
         particles.emitterShape = .sphere
         particles.emitterShapeSize = [0.09, 0.09, 0.09]
         particles.birthLocation = .surface
-        particles.speed = 2.0
+        particles.speed = 2.0 * style.scale
         particles.speedVariation = 0.9
         particles.isEmitting = false
-        particles.mainEmitter.birthRate = 0
+        particles.mainEmitter.birthRate = 850
         particles.mainEmitter.lifeSpan = 0.5
         particles.mainEmitter.lifeSpanVariation = 0.15
-        particles.mainEmitter.size = 0.055
+        particles.mainEmitter.size = 0.055 * style.scale
         particles.mainEmitter.sizeVariation = 0.025
         particles.mainEmitter.blendMode = .additive
+        particles.mainEmitter.color = .evolving(
+            start: .random(a: style.color, b: style.accent),
+            end: .single(style.color.withAlphaComponent(0))
+        )
         burst.components.set(particles)
         return burst
     }
@@ -687,12 +764,17 @@ final class RunnerWorld {
             sprayPool.append(node)
         }
 
-        // Pickup burst pool shared by coins and power-ups.
-        for _ in 0..<10 {
-            let node = BurstNode(entity: Self.makePickupBurst())
-            node.entity.isEnabled = false
-            spawned.addChild(node.entity)
-            burstPool.append(node)
+        // Pickup burst pools shared by coins and power-ups: one pre-configured
+        // pool per color preset so spawning is just "move + enable".
+        for style in BurstStyle.allCases {
+            var pool: [BurstNode] = []
+            for _ in 0..<style.poolSize {
+                let node = BurstNode(entity: Self.makePickupBurst(style: style))
+                node.entity.isEnabled = false
+                spawned.addChild(node.entity)
+                pool.append(node)
+            }
+            burstPools[style] = pool
         }
 
         applyBatterySaver()
@@ -833,6 +915,8 @@ final class RunnerWorld {
         crashHandled = false
         shakeTimer = 0
         comboTimer = 0
+        coinSfxTimer = 0
+        coinHapticTimer = 0
         clearBursts()
 
         playerContainer.position = [0, 0, 0]
@@ -846,7 +930,8 @@ final class RunnerWorld {
         state.beginRun()
         runnerAnimator?.setLoop(activeCharacter.run)
         inspectorAnimator?.setLoop(GeneratedAssets.inspectorRun)
-        audio.startMusic()
+        // Every run kicks off with a fresh track from the top — start-game energy.
+        audio.startRunMusic()
     }
 
     func returnHome() {
@@ -907,12 +992,7 @@ final class RunnerWorld {
         audio.play(.jump)
         if rocketKicks {
             // Sparkle kick-off burst at the sneakers.
-            spawnPickupBurst(
-                at: [playerX, 0.25, 0],
-                color: UIColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 0.95),
-                accent: UIColor(red: 1.0, green: 0.35, blue: 0.45, alpha: 0.95),
-                scale: 1.4
-            )
+            spawnPickupBurst(.superJumpKick, at: [playerX, 0.25, 0], ignoresBudget: true)
         }
         // Scale the jump clip window with actual airtime (2v/g).
         let airtimeMs = Int(2 * takeoff / -WorldConfig.gravity * 1000) + 80
@@ -973,6 +1053,8 @@ final class RunnerWorld {
 
     private func updateRun(dt: Float) {
         runTime += dt
+        // Fresh burst budget each frame — chain pickups can't stack spawns.
+        burstSpawnBudget = 4
 
         // Speed ramp: gentle time-based warm-up plus a score-driven surge —
         // the higher the score, the faster the runner sprints.
@@ -990,7 +1072,8 @@ final class RunnerWorld {
         if paintRushTimer > 0 {
             paintRushTimer -= dt
             speed *= 1.18
-            state.paintRushProgress = Double(max(0, paintRushTimer / Self.paintRushDuration))
+            let paintProgress = Self.quantizedProgress(paintRushTimer / Self.paintRushDuration)
+            if state.paintRushProgress != paintProgress { state.paintRushProgress = paintProgress }
             if paintRushTimer <= 0 {
                 state.paintRushActive = false
                 state.paintRushProgress = 0
@@ -1002,7 +1085,8 @@ final class RunnerWorld {
         // Combo window: drain, then break the chain when time runs out.
         if comboTimer > 0 {
             comboTimer -= dt
-            state.comboProgress = Double(max(0, comboTimer / Self.comboWindow))
+            let comboProgress = Self.quantizedProgress(comboTimer / Self.comboWindow)
+            if state.comboProgress != comboProgress { state.comboProgress = comboProgress }
             if comboTimer <= 0 {
                 state.comboCount = 0
                 state.comboProgress = 0
@@ -1274,6 +1358,9 @@ final class RunnerWorld {
     // MARK: Collection
 
     private func updateCoins(dt: Float) {
+        coinSfxTimer = max(0, coinSfxTimer - dt)
+        coinHapticTimer = max(0, coinHapticTimer - dt)
+
         // Paint Rush doubles as a note magnet.
         let magnetActive = state.activePowerUp == .magnet || paintRushTimer > 0
         let playerCenterY = playerY + (isSliding ? 0.5 : 0.9)
@@ -1290,12 +1377,7 @@ final class RunnerWorld {
                 if (inReach || coin.magnetPull > 0), distance > 0.01 {
                     // Teal snap-flash the instant the magnet grabs a coin.
                     if coin.magnetPull == 0 {
-                        spawnPickupBurst(
-                            at: position,
-                            color: UIColor(red: 0.16, green: 0.82, blue: 0.75, alpha: 0.95),
-                            accent: UIColor(red: 0.8, green: 1.0, blue: 0.96, alpha: 0.95),
-                            scale: 0.45
-                        )
+                        spawnPickupBurst(.magnetGrab, at: position)
                     }
 
                     // Ramping pull: coins ease out of formation, then whip in
@@ -1334,16 +1416,9 @@ final class RunnerWorld {
                 coin.entity.scale = .one
                 state.coins += 1
                 registerComboPickup()
-                spawnPickupBurst(
-                    at: position,
-                    color: UIColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 0.95),
-                    accent: coin.magnetPull > 0
-                        ? UIColor(red: 0.16, green: 0.82, blue: 0.75, alpha: 0.95)
-                        : UIColor(red: 1.0, green: 0.98, blue: 0.8, alpha: 0.95)
-                )
+                spawnPickupBurst(coin.magnetPull > 0 ? .coinMagnet : .coinGold, at: position)
                 coin.magnetPull = 0
-                audio.play(.coin)
-                haptics.coin()
+                playCoinFeedback()
             }
         }
 
@@ -1357,19 +1432,33 @@ final class RunnerWorld {
                 spray.entity.isEnabled = false
                 state.runSprays += 1
                 state.sprayMeter = min(GameState.sprayMeterMax, state.sprayMeter + 1)
-                spawnPickupBurst(
-                    at: position,
-                    color: UIColor(red: 0.72, green: 0.35, blue: 0.98, alpha: 0.95),
-                    accent: UIColor(red: 0.16, green: 0.82, blue: 0.75, alpha: 0.95)
-                )
-                audio.play(.coin)
-                haptics.coin()
+                spawnPickupBurst(.spray, at: position)
+                playCoinFeedback()
 
                 if state.sprayMeter >= GameState.sprayMeterMax, paintRushTimer <= 0 {
                     activatePaintRush()
                 }
             }
         }
+    }
+
+    /// Rate-limited coin feedback: chain pickups (magnet vacuums) read as a
+    /// tight rhythm instead of dozens of overlapping dings + taps per second.
+    private func playCoinFeedback() {
+        if coinSfxTimer <= 0 {
+            coinSfxTimer = 0.07
+            audio.play(.coin)
+        }
+        if coinHapticTimer <= 0 {
+            coinHapticTimer = 0.12
+            haptics.coin()
+        }
+    }
+
+    /// Quantizes a 0...1 progress to 1% steps so @Observable HUD bars only
+    /// re-render when the change is actually visible.
+    private static func quantizedProgress(_ value: Float) -> Double {
+        Double((max(0, min(1, value)) * 100).rounded() / 100)
     }
 
     /// Extends the combo chain on every note pickup; milestone chains get a
@@ -1409,12 +1498,7 @@ final class RunnerWorld {
                 if abs(position.z) < 0.9, abs(position.x - playerX) < 1.0, playerY < 2.2 {
                     node.isActive = false
                     node.entity.isEnabled = false
-                    spawnPickupBurst(
-                        at: position,
-                        color: Self.burstColor(for: node.type),
-                        accent: UIColor(white: 1.0, alpha: 0.95),
-                        scale: 1.7
-                    )
+                    spawnPickupBurst(Self.burstStyle(for: node.type), at: position, ignoresBudget: true)
                     activatePowerUp(node.type)
                 }
             }
@@ -1423,7 +1507,8 @@ final class RunnerWorld {
         // Active power-up countdown
         if let active = state.activePowerUp {
             powerUpTimer -= dt
-            state.powerUpProgress = Double(max(0, powerUpTimer / max(0.001, powerUpDurationTotal)))
+            let powerProgress = Self.quantizedProgress(powerUpTimer / max(0.001, powerUpDurationTotal))
+            if state.powerUpProgress != powerProgress { state.powerUpProgress = powerProgress }
             if powerUpTimer <= 0 {
                 if active == .doubleScore { state.multiplier = 1 }
                 if active == .jetpack {
@@ -1463,13 +1548,13 @@ final class RunnerWorld {
 
     // MARK: Pickup bursts
 
-    /// Paint-splash burst tones matched to the BEAT RUNNER pickup set.
-    private static func burstColor(for type: PowerUpType) -> UIColor {
+    /// Paint-splash burst preset matched to the BEAT RUNNER pickup set.
+    private static func burstStyle(for type: PowerUpType) -> BurstStyle {
         switch type {
-        case .magnet: return UIColor(red: 0.16, green: 0.82, blue: 0.75, alpha: 0.95)
-        case .doubleScore: return UIColor(red: 0.72, green: 0.35, blue: 0.98, alpha: 0.95)
-        case .superJump: return UIColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 0.95)
-        case .jetpack: return UIColor(red: 1.0, green: 0.52, blue: 0.14, alpha: 0.95)
+        case .magnet: return .powerMagnet
+        case .doubleScore: return .powerDouble
+        case .superJump: return .powerJump
+        case .jetpack: return .powerJetpack
         }
     }
 
@@ -1479,26 +1564,19 @@ final class RunnerWorld {
         environment.findEntity(named: "festival_confetti")?.isEnabled = !saver
     }
 
-    /// Fires a short radial sparkle burst at a pickup's world position.
-    private func spawnPickupBurst(at position: SIMD3<Float>, color: UIColor, accent: UIColor, scale: Float = 1) {
+    /// Ignites a pre-built sparkle burst at a pickup's world position. Spawning
+    /// only moves the entity and flips emission on; a small per-frame budget
+    /// keeps magnet chain-pickups from stacking particle work into one frame.
+    private func spawnPickupBurst(_ style: BurstStyle, at position: SIMD3<Float>, ignoresBudget: Bool = false) {
         // Battery saver skips decorative pickup bursts.
         guard !state.meta.batterySaver else { return }
-        guard let node = burstPool.first(where: { $0.lifeTimer <= 0 }) ?? burstPool.first else { return }
+        guard ignoresBudget || burstSpawnBudget > 0 else { return }
+        guard let node = burstPools[style]?.first(where: { $0.lifeTimer <= 0 }) else { return }
+        if !ignoresBudget { burstSpawnBudget -= 1 }
+
         node.entity.position = position
         node.entity.isEnabled = true
-
-        if var particles = node.entity.components[ParticleEmitterComponent.self] {
-            particles.speed = 2.0 * scale
-            particles.mainEmitter.birthRate = 850
-            particles.mainEmitter.size = 0.055 * scale
-            particles.mainEmitter.color = .evolving(
-                start: .random(a: color, b: accent),
-                end: .single(color.withAlphaComponent(0))
-            )
-            particles.isEmitting = true
-            node.entity.components.set(particles)
-        }
-
+        node.entity.components[ParticleEmitterComponent.self]?.isEmitting = true
         node.emitTimer = 0.09
         node.lifeTimer = 0.8
     }
@@ -1506,7 +1584,7 @@ final class RunnerWorld {
     /// Advances burst timers: stops emission after the flash window and frees
     /// the slot once the last particles have faded.
     private func updateBursts(dt: Float) {
-        for node in burstPool where node.lifeTimer > 0 {
+        for node in burstPools.values.joined() where node.lifeTimer > 0 {
             node.lifeTimer -= dt
             if node.emitTimer > 0 {
                 node.emitTimer -= dt
@@ -1522,7 +1600,7 @@ final class RunnerWorld {
 
     /// Instantly clears every active burst (run restarts / returning home).
     private func clearBursts() {
-        for node in burstPool {
+        for node in burstPools.values.joined() {
             node.emitTimer = 0
             node.lifeTimer = 0
             node.entity.components[ParticleEmitterComponent.self]?.isEmitting = false
