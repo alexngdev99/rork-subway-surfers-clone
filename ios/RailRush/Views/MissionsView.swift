@@ -63,7 +63,7 @@ struct MissionsView: View {
 
     private var headerLogo: some View {
         Group {
-            if let logo = UIImage(named: "season_hunt_logo") {
+            if let logo = UIImage(named: "season_hunt_graffiti_logo") {
                 Image(uiImage: logo)
                     .resizable()
                     .scaledToFit()
@@ -92,7 +92,7 @@ struct MissionsView: View {
 
     private var seasonProgressPanel: some View {
         HStack(spacing: 12) {
-            AssetIcon(name: "season_badge_icon", size: 62, fallbackSymbol: "seal.fill")
+            AssetIcon(name: "gold_sun_medal_s", size: 62, fallbackSymbol: "seal.fill")
 
             VStack(alignment: .leading, spacing: 6) {
                 OutlinedText(text: "SEASON PROGRESS", size: 15)
@@ -168,7 +168,7 @@ struct MissionsView: View {
 
     private var chestBanner: some View {
         HStack(spacing: 12) {
-            AssetIcon(name: "spray_boost_icon", size: 52, fallbackSymbol: "paintbrush.fill")
+            AssetIcon(name: "spray_can_lightning", size: 52, fallbackSymbol: "paintbrush.fill")
 
             VStack(spacing: 3) {
                 OutlinedText(text: "COMPLETE ALL MISSIONS", size: 14)
@@ -191,7 +191,7 @@ struct MissionsView: View {
             }
             .frame(maxWidth: .infinity)
 
-            AssetIcon(name: "mystery_box_icon", size: 58, fallbackSymbol: "shippingbox.fill")
+            AssetIcon(name: "mystery_cube_box_coins", size: 58, fallbackSymbol: "shippingbox.fill")
                 .shadow(color: GameTheme.magenta.opacity(meta.seasonChestReady ? 0.8 : 0.3), radius: 10)
         }
         .padding(14)
@@ -278,9 +278,9 @@ private struct MissionRow: View {
     private var missionIcon: some View {
         switch mission.kind {
         case .collectNotes:
-            AssetIcon(name: "coin_pile_icon", size: 44, fallbackSymbol: "music.note")
+            AssetIcon(name: "gold_coins_pile", size: 44, fallbackSymbol: "music.note")
         case .collectSprays:
-            AssetIcon(name: "spray_boost_icon", size: 44, fallbackSymbol: "paintbrush.fill")
+            AssetIcon(name: "spray_can_lightning", size: 44, fallbackSymbol: "paintbrush.fill")
         case .jumpTimes:
             symbolIcon("figure.jumprope")
         case .slideTimes:

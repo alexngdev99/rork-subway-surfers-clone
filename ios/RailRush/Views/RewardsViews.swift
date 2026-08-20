@@ -22,7 +22,7 @@ struct DailyLoginView: View {
             ZStack(alignment: .top) {
                 GamePanel {
                     VStack(spacing: 14) {
-                        AssetIcon(name: "daily_calendar_icon", size: 64, fallbackSymbol: "calendar.badge.checkmark")
+                        AssetIcon(name: "calendar_checkmark", size: 64, fallbackSymbol: "calendar.badge.checkmark")
 
                         Text("Log in every day to keep your streak!")
                             .font(.system(size: 13, weight: .bold, design: .rounded))
@@ -157,9 +157,9 @@ private struct LoginDayCell: View {
     @ViewBuilder
     private var rewardIcon: some View {
         if day.reward.keys > 0 {
-            AssetIcon(name: "blue_key_icon", size: 24, fallbackSymbol: "key.fill")
+            AssetIcon(name: "skeleton_key_blue", size: 24, fallbackSymbol: "key.fill")
         } else if day.reward.sprays > 0 {
-            AssetIcon(name: "spray_boost_icon", size: 24, fallbackSymbol: "paintbrush.fill")
+            AssetIcon(name: "spray_can_lightning", size: 24, fallbackSymbol: "paintbrush.fill")
         } else {
             MusicCoinIcon(size: 22)
         }
@@ -200,7 +200,7 @@ struct FreeRewardsView: View {
             ZStack(alignment: .top) {
                 GamePanel {
                     VStack(spacing: 16) {
-                        AssetIcon(name: "gift_box_icon", size: 110, fallbackSymbol: "gift.fill")
+                        AssetIcon(name: "gift_box_coins_bow", size: 110, fallbackSymbol: "gift.fill")
                             .scaleEffect(bounce ? 1.06 : 0.98)
                             .rotationEffect(.degrees(bounce ? 2 : -2))
                             .animation(

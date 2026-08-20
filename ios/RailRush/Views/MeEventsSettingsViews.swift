@@ -69,7 +69,7 @@ struct MeView: View {
                     .foregroundStyle(Color(red: 0.72, green: 0.60, blue: 0.95))
 
                 HStack(spacing: 6) {
-                    AssetIcon(name: "season_badge_icon", size: 26, fallbackSymbol: "seal.fill")
+                    AssetIcon(name: "gold_sun_medal_s", size: 26, fallbackSymbol: "seal.fill")
                     OutlinedText(text: "SEASON \(meta.seasonLevel)", size: 14)
                 }
             }
@@ -184,7 +184,7 @@ struct EventsView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 14) {
-                        AssetIcon(name: "events_trophy_icon", size: 110, fallbackSymbol: "trophy.fill")
+                        AssetIcon(name: "trophy_cup_star", size: 110, fallbackSymbol: "trophy.fill")
                             .shadow(color: GameTheme.gold.opacity(0.55), radius: 16)
 
                         VStack(spacing: 2) {
@@ -298,7 +298,7 @@ private struct EventTierRow: View {
                 } else {
                     HStack(spacing: 3) {
                         OutlinedText(text: "\(tier.keys)", size: 16)
-                        AssetIcon(name: "blue_key_icon", size: 17, fallbackSymbol: "key.fill")
+                        AssetIcon(name: "skeleton_key_blue", size: 17, fallbackSymbol: "key.fill")
                     }
                 }
             }
@@ -333,7 +333,7 @@ struct SettingsView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 12) {
-                        if let logo = UIImage(named: "settings_logo_text") {
+                        if let logo = UIImage(named: "settings_crown_graffiti") {
                             Image(uiImage: logo)
                                 .resizable()
                                 .scaledToFit()

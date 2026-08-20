@@ -115,7 +115,7 @@ private struct SprayMeter: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            AssetIcon(name: "spray_boost_icon", size: 34, fallbackSymbol: "paintbrush.fill")
+            AssetIcon(name: "spray_can_lightning", size: 34, fallbackSymbol: "paintbrush.fill")
                 .shadow(color: rushActive ? GameTheme.magenta.opacity(0.9) : .clear, radius: 8)
 
             HStack(spacing: 3) {

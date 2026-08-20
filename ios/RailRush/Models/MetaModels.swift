@@ -66,10 +66,10 @@ enum UpgradeKind: String, CaseIterable, Identifiable {
     /// Generated sticker icon in the asset catalog.
     var iconAsset: String {
         switch self {
-        case .jetpack: return "jetpack_icon"
-        case .sneakers: return "super_sneaker_icon"
-        case .magnet: return "note_magnet_icon"
-        case .multiplier: return "multiplier_star_icon"
+        case .jetpack: return "twin_tank_jetpack"
+        case .sneakers: return "red_white_sneaker_lightning"
+        case .magnet: return "magnet_music_notes_spark"
+        case .multiplier: return "gold_star_2x_multiplier"
         }
     }
 
@@ -126,10 +126,10 @@ struct CoinPack: Identifiable {
     let badge: String?
 
     static let all: [CoinPack] = [
-        CoinPack(id: 0, notes: 2500, keyCost: 5, iconAsset: "coin_pile_icon", badge: nil),
-        CoinPack(id: 1, notes: 6500, keyCost: 12, iconAsset: "coin_bag_icon", badge: "MOST POPULAR!"),
-        CoinPack(id: 2, notes: 15000, keyCost: 25, iconAsset: "coin_chest_icon", badge: nil),
-        CoinPack(id: 3, notes: 40000, keyCost: 45, iconAsset: "coin_chest_big_icon", badge: "BEST VALUE!"),
+        CoinPack(id: 0, notes: 2500, keyCost: 5, iconAsset: "gold_coins_pile", badge: nil),
+        CoinPack(id: 1, notes: 6500, keyCost: 12, iconAsset: "money_bag_coins", badge: "MOST POPULAR!"),
+        CoinPack(id: 2, notes: 15000, keyCost: 25, iconAsset: "treasure_chest_coins", badge: nil),
+        CoinPack(id: 3, notes: 40000, keyCost: 45, iconAsset: "glossy_3d_cartoon", badge: "BEST VALUE!"),
     ]
 }
 
@@ -145,7 +145,7 @@ struct OfferPack: Identifiable {
     static let starter = OfferPack(
         id: "starter",
         title: "STARTER PACK",
-        iconAsset: "starter_pack_icon",
+        iconAsset: "duffel_bag_paint_splashes",
         reward: RewardBundle(notes: 5000, keys: 0, sprays: 10),
         keyCost: 8,
         discountLabel: nil
@@ -154,7 +154,7 @@ struct OfferPack: Identifiable {
     static let mega = OfferPack(
         id: "mega",
         title: "MEGA BUNDLE",
-        iconAsset: "mega_bundle_icon",
+        iconAsset: "crate_paint_cans_coins",
         reward: RewardBundle(notes: 25000, keys: 0, sprays: 30),
         keyCost: 20,
         discountLabel: "-70%"
@@ -179,9 +179,9 @@ enum MysteryReward: Equatable {
 
     var iconAsset: String {
         switch self {
-        case .notes: return "coin_bag_icon"
-        case .sprays: return "spray_boost_icon"
-        case .keys: return "blue_key_icon"
+        case .notes: return "money_bag_coins"
+        case .sprays: return "spray_can_lightning"
+        case .keys: return "skeleton_key_blue"
         case .upgrade(let kind): return kind.iconAsset
         }
     }

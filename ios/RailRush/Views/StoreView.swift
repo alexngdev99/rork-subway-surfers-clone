@@ -73,7 +73,7 @@ struct StoreView: View {
     private var header: some View {
         HStack(alignment: .top, spacing: 6) {
             VStack(alignment: .leading, spacing: 2) {
-                if let logo = UIImage(named: "store_logo_text") {
+                if let logo = UIImage(named: "store_graffiti_logo") {
                     Image(uiImage: logo)
                         .resizable()
                         .scaledToFit()
@@ -158,7 +158,7 @@ struct StoreView: View {
     private var mysteryOfferCard: some View {
         VStack(spacing: 8) {
             OutlinedText(text: "MYSTERY BOX", size: 16)
-            AssetIcon(name: "mystery_box_icon", size: 88, fallbackSymbol: "shippingbox.fill")
+            AssetIcon(name: "mystery_cube_box_coins", size: 88, fallbackSymbol: "shippingbox.fill")
                 .shadow(color: GameTheme.magenta.opacity(0.6), radius: 12)
             Text("Epic Rewards Inside!")
                 .font(.system(size: 12, weight: .black, design: .rounded))
@@ -167,7 +167,7 @@ struct StoreView: View {
             Button { openMystery() } label: {
                 HStack(spacing: 5) {
                     OutlinedText(text: "\(MetaState.mysteryBoxCost)", size: 17)
-                    AssetIcon(name: "blue_key_icon", size: 19, fallbackSymbol: "key.fill")
+                    AssetIcon(name: "skeleton_key_blue", size: 19, fallbackSymbol: "key.fill")
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -226,7 +226,7 @@ struct StoreView: View {
         VStack(spacing: 16) {
             SectionRibbon(text: "MYSTERY BOXES")
 
-            AssetIcon(name: "mystery_box_icon", size: 170, fallbackSymbol: "shippingbox.fill")
+            AssetIcon(name: "mystery_cube_box_coins", size: 170, fallbackSymbol: "shippingbox.fill")
                 .shadow(color: GameTheme.magenta.opacity(0.7), radius: 20)
 
             Text("Notes, spray cans, keys — or a FREE power-up upgrade!")
@@ -238,7 +238,7 @@ struct StoreView: View {
             Button { openMystery() } label: {
                 HStack(spacing: 8) {
                     OutlinedText(text: "OPEN FOR \(MetaState.mysteryBoxCost)", size: 19)
-                    AssetIcon(name: "blue_key_icon", size: 22, fallbackSymbol: "key.fill")
+                    AssetIcon(name: "skeleton_key_blue", size: 22, fallbackSymbol: "key.fill")
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -338,7 +338,7 @@ private struct CoinPackCard: View {
             Button(action: onBuy) {
                 HStack(spacing: 5) {
                     OutlinedText(text: "\(pack.keyCost)", size: 17)
-                    AssetIcon(name: "blue_key_icon", size: 19, fallbackSymbol: "key.fill")
+                    AssetIcon(name: "skeleton_key_blue", size: 19, fallbackSymbol: "key.fill")
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -384,7 +384,7 @@ private struct OfferCard: View {
             Button(action: onBuy) {
                 HStack(spacing: 5) {
                     OutlinedText(text: "\(offer.keyCost)", size: 16)
-                    AssetIcon(name: "blue_key_icon", size: 18, fallbackSymbol: "key.fill")
+                    AssetIcon(name: "skeleton_key_blue", size: 18, fallbackSymbol: "key.fill")
                 }
                 .frame(maxWidth: .infinity)
             }

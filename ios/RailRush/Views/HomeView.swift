@@ -24,7 +24,7 @@ struct HomeView: View {
             HStack(alignment: .top, spacing: 0) {
                 VStack(spacing: 12) {
                     SideMenuButton(
-                        iconAsset: "gift_box_icon",
+                        iconAsset: "gift_box_coins_bow",
                         fallbackSymbol: "gift.fill",
                         label: "FREE\nREWARDS!",
                         badge: meta.freeRewardReady ? 1 : 0
@@ -32,7 +32,7 @@ struct HomeView: View {
                         meta.route = .freeRewards
                     }
                     SideMenuButton(
-                        iconAsset: "daily_calendar_icon",
+                        iconAsset: "calendar_checkmark",
                         fallbackSymbol: "calendar",
                         label: "DAILY\nLOGIN",
                         badge: meta.dailyLoginReady ? 1 : 0
@@ -40,7 +40,7 @@ struct HomeView: View {
                         meta.route = .dailyLogin
                     }
                     SideMenuButton(
-                        iconAsset: "starter_pack_icon",
+                        iconAsset: "duffel_bag_paint_splashes",
                         fallbackSymbol: "cart.fill",
                         label: "SHOP",
                         badge: 0
@@ -57,7 +57,7 @@ struct HomeView: View {
 
                 VStack(spacing: 12) {
                     SideMenuButton(
-                        iconAsset: "events_trophy_icon",
+                        iconAsset: "trophy_cup_star",
                         fallbackSymbol: "trophy.fill",
                         label: "EVENTS",
                         badge: meta.eventsBadgeCount
@@ -124,7 +124,7 @@ struct HomeView: View {
             meta.route = .missions
         } label: {
             HStack(spacing: 10) {
-                AssetIcon(name: "season_badge_icon", size: 46, fallbackSymbol: "seal.fill")
+                AssetIcon(name: "gold_sun_medal_s", size: 46, fallbackSymbol: "seal.fill")
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text("SEASON \(meta.seasonLevel)")

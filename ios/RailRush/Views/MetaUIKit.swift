@@ -53,7 +53,7 @@ struct CurrencyBar: View {
     var body: some View {
         HStack(spacing: 7) {
             CurrencyChip(
-                icon: { AssetIcon(name: "blue_key_icon", size: 20, fallbackSymbol: "key.fill") },
+                icon: { AssetIcon(name: "skeleton_key_blue", size: 20, fallbackSymbol: "key.fill") },
                 value: meta.keys,
                 onPlus: { meta.route = .store(.mystery) }
             )
@@ -63,7 +63,7 @@ struct CurrencyBar: View {
                 onPlus: { meta.route = .store(.coins) }
             )
             CurrencyChip(
-                icon: { AssetIcon(name: "spray_boost_icon", size: 20, fallbackSymbol: "paintbrush.fill") },
+                icon: { AssetIcon(name: "spray_can_lightning", size: 20, fallbackSymbol: "paintbrush.fill") },
                 value: meta.sprays,
                 onPlus: { meta.route = .store(.offers) }
             )
@@ -167,13 +167,13 @@ struct RewardLabel: View {
             if reward.keys > 0 {
                 HStack(spacing: 3) {
                     OutlinedText(text: "\(reward.keys)", size: textSize)
-                    AssetIcon(name: "blue_key_icon", size: iconSize, fallbackSymbol: "key.fill")
+                    AssetIcon(name: "skeleton_key_blue", size: iconSize, fallbackSymbol: "key.fill")
                 }
             }
             if reward.sprays > 0 {
                 HStack(spacing: 3) {
                     OutlinedText(text: "\(reward.sprays)", size: textSize)
-                    AssetIcon(name: "spray_boost_icon", size: iconSize, fallbackSymbol: "paintbrush.fill")
+                    AssetIcon(name: "spray_can_lightning", size: iconSize, fallbackSymbol: "paintbrush.fill")
                 }
             }
         }
@@ -191,7 +191,7 @@ struct MetaScreen<Content: View>: View {
         ZStack {
             GameTheme.bgDeep.ignoresSafeArea()
 
-            if let wall = UIImage(named: "graffiti_wall_bg") {
+            if let wall = UIImage(named: "graffiti_brick_wall_bg") {
                 GeometryReader { proxy in
                     Image(uiImage: wall)
                         .resizable()

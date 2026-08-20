@@ -20,8 +20,8 @@ struct CharactersView: View {
         [
             RosterSlot(id: "boy", displayName: "JAX", avatar: "teenage_boy_dreadlocks_hoodie", isLocked: false),
             RosterSlot(id: "girl", displayName: "ROXY", avatar: "teenage_girl_pink_bunches", isLocked: false),
-            RosterSlot(id: "locked1", displayName: "???", avatar: "locked_boy_green_hair", isLocked: true),
-            RosterSlot(id: "locked2", displayName: "???", avatar: "locked_girl_glasses", isLocked: true),
+            RosterSlot(id: "locked1", displayName: "???", avatar: "teenage_boy_green_hair_avatar", isLocked: true),
+            RosterSlot(id: "locked2", displayName: "???", avatar: "girl_peace_sign_avatar", isLocked: true),
         ]
     }
 
@@ -200,7 +200,7 @@ struct CharactersView: View {
     private var equipmentChips: some View {
         HStack(spacing: 8) {
             EquipChip(label: "SKIN", value: "Festival Vibes", equipped: true) {
-                AssetIcon(name: "season_badge_icon", size: 26, fallbackSymbol: "paintpalette.fill")
+                AssetIcon(name: "gold_sun_medal_s", size: 26, fallbackSymbol: "paintpalette.fill")
             }
             EquipChip(label: "TAG", value: "Default", equipped: false) {
                 Image(systemName: "music.note")
@@ -208,7 +208,7 @@ struct CharactersView: View {
                     .foregroundStyle(GameTheme.magenta)
             }
             EquipChip(label: "TRAIL", value: "Neon Spray", equipped: false) {
-                AssetIcon(name: "spray_boost_icon", size: 26, fallbackSymbol: "paintbrush.fill")
+                AssetIcon(name: "spray_can_lightning", size: 26, fallbackSymbol: "paintbrush.fill")
             }
         }
     }
