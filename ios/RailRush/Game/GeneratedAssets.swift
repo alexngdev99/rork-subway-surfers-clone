@@ -47,8 +47,9 @@ enum GeneratedAssets {
         // Legacy gray subway train kept in the mix — directionless metadata.
         TrainStyleAsset(model: "subway_train", frontAxis: nil),
     ]
-    /// Collectible currency: golden music note (replaces the old gold coin).
-    static let coinModel = "golden_music_note"
+    /// Collectible currency: gold coin with an embossed music note on the face
+    /// (replaces the old floating golden music note).
+    static let coinModel = "music_note_coin"
 
     // MARK: Orientation metadata (from generation output)
 
@@ -59,7 +60,7 @@ enum GeneratedAssets {
     /// Festival train front cab faces +X (persisted metadata).
     static let trainFrontAxis: GeneratedModelAxis? = .positiveX
     static let trainUpAxis: GeneratedModelAxis = .positiveY
-    /// Music note reads correctly from +Z; pickups Y-spin so no yaw fix needed.
+    /// Coin is directionless (persisted metadata); pickups Y-spin on the track.
     static let coinFrontAxis: GeneratedModelAxis? = nil
     static let coinUpAxis: GeneratedModelAxis = .positiveY
 
